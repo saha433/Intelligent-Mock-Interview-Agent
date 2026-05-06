@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RoleReady AI — Intelligent Mock Interview Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  :root{
+    --bg:#080A12;
+    --surface:#0A0C16;
+    --card:#0F1120;
+    --panel:#0D0F1C;
+    --border:#1A1F35;
+    --text:#FFFFFF;
+    --text-soft:#E2E8F0;
+    --text-muted:#CBD5E1;
+    --text-subtle:#64748B;
+    --text-faint:#4A5568;
+    --purple:#443ac7;
+    --purple-soft:#A78BFA;
+    --hero-grid:rgba(148,163,184,0.28);
+    --hero-glow-a:rgba(249,115,22,0.28);
+    --hero-glow-b:rgba(124,58,237,0.24);
+    --hero-glow-c:rgba(37,99,235,0.26);
+  }
+  body.light{
+    --bg:#F6F7FB;
+    --surface:#FFFFFF;
+    --card:#FFFFFF;
+    --panel:#F8FAFC;
+    --border:#DDE3EF;
+    --text:#111827;
+    --text-soft:#1F2937;
+    --text-muted:#475569;
+    --text-subtle:#64748B;
+    --text-faint:#94A3B8;
+    --hero-grid:rgba(15,23,42,0.22);
+    --hero-glow-a:rgba(249,115,22,0.24);
+    --hero-glow-b:rgba(124,58,237,0.18);
+    --hero-glow-c:rgba(37,99,235,0.18);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);font-family:'DM Sans',sans-serif;transition:background 0.25s ease,color 0.25s ease;}
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-track{background:var(--surface);}
+  ::-webkit-scrollbar-thumb{background:#2D3748;border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+  @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(124,58,237,0.2)}50%{box-shadow:0 0 40px rgba(124,58,237,0.4)}}
+  @keyframes barPulse{0%,100%{transform:scaleY(0.6)}50%{transform:scaleY(1.0)}}
+  .fade-in{animation:fadeIn 0.4s ease both;}
+  .slide-in{animation:slideIn 0.3s ease both;}
+  textarea::placeholder{color:var(--text-faint);}
+  input::placeholder{color:var(--text-faint);}
+  input:focus,textarea:focus{border-color:#7C3AED !important;box-shadow:0 0 0 2px rgba(124,58,237,0.15);}
+  button:hover{opacity:0.9;transform:translateY(-1px);}
+  button:active{transform:translateY(0);}
+  button{transition:all 0.15s ease;}
+  .card-hover:hover{border-color:#7C3AED66 !important;transition:border-color 0.2s;}
+  .theme-transition *{transition:background-color 0.25s ease,border-color 0.25s ease,color 0.25s ease,box-shadow 0.25s ease;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useContext } = React;
+const ThemeContext = React.createContext({isLight:false,toggleTheme:()=>{}});
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+
+let candidate = {
+  name:"Resume Candidate",email:"",
+  targetRoles:["Upload a resume to infer roles"],
+  skills:["Upload resume","Parse skills","Infer roles"],
+  weakAreas:["Upload resume to detect gaps"],
+  projects:[
+    {name:"Upload a resume to extract projects",tech:["PDF","TXT"],impact:"Awaiting resume"},
+  ],
+  experienceLevel:"Not analyzed",totalExperience:"Upload resume",
+};
+
+let appUser = {
+  name:"User",
+  email:"user@roleready.local",
+  provider:"email",
+};
+
+let resumeAnalysis = { 
+  extractedSkills:[
+    {name:"Python",level:85,category:"Language"},{name:"React",level:75,category:"Frontend"},
+    {name:"SQL",level:80,category:"Database"},{name:"REST APIs",level:82,category:"Backend"},
+    {name:"PostgreSQL",level:78,category:"Database"},{name:"Docker",level:65,category:"DevOps"},
+    {name:"JavaScript",level:72,category:"Language"},{name:"Node.js",level:60,category:"Backend"},
+  ],
+  bestFitRoles:[
+    {role:"Backend Developer",confidence:91,reasoning:"Strong Python + REST API + PostgreSQL combination"},
+    {role:"Full Stack Developer",confidence:78,reasoning:"React + backend skills present, needs more TypeScript"},
+    {role:"Data Engineer",confidence:72,reasoning:"SQL + Python solid, missing Spark/Airflow experience"},
+  ],
+  interviewFocusAreas:[
+    "Backend API design and REST principles","Database optimization and indexing",
+    "Docker containerization","System design fundamentals","Data structures & algorithms",
+  ],
+  weakMissingAreas:[
+    {area:"System Design",severity:"high",suggestion:"Study distributed system patterns & CAP theorem"},
+    {area:"Cloud (AWS/GCP)",severity:"high",suggestion:"Get hands-on with EC2, S3, Lambda"},
+    {area:"Kubernetes",severity:"medium",suggestion:"Learn K8s basics and pod management"},
+    {area:"Message Queues",severity:"medium",suggestion:"Learn Kafka or RabbitMQ basics"},
+    {area:"CI/CD Pipelines",severity:"low",suggestion:"Practice GitHub Actions or Jenkins"},
+  ],
+};
+
+const jobRecommendations = [
+  {id:1,title:"Backend Developer Intern",company:"TechNova",location:"Bangalore, IN",type:"Internship",salary:"₹25k–35k/mo",matchScore:86,matchingSkills:["Python","REST APIs","PostgreSQL","Docker"],missingSkills:["Kubernetes","Redis"],whyFits:"Your FastAPI + PostgreSQL project directly aligns with their stack. Docker experience is a strong bonus for their containerized microservices.",priority:"High",postedDays:2,logo:"TN",logoColor:"#7C3AED"},
+  {id:2,title:"Full Stack Engineer",company:"CloudHive",location:"Remote",type:"Full-time",salary:"₹40k–60k/mo",matchScore:79,matchingSkills:["React","JavaScript","Node.js","SQL"],missingSkills:["TypeScript","GraphQL","AWS"],whyFits:"React + backend duality matches their product squad model. TypeScript ramp-up expected in first 2 weeks.",priority:"Medium",postedDays:5,logo:"CH",logoColor:"#2563EB"},
+  {id:3,title:"Data Engineer Trainee",company:"DataNest",location:"Hyderabad, IN",type:"Full-time",salary:"₹30k–45k/mo",matchScore:74,matchingSkills:["Python","SQL","PostgreSQL"],missingSkills:["Apache Spark","Airflow","Kafka"],whyFits:"SQL + Python foundation is solid. Analytics Dashboard shows data pipeline thinking even without Spark.",priority:"Medium",postedDays:8,logo:"DN",logoColor:"#059669"},
+  {id:4,title:"Junior API Developer",company:"PayScale Tech",location:"Pune, IN",type:"Full-time",salary:"₹28k–40k/mo",matchScore:68,matchingSkills:["REST APIs","Python","PostgreSQL"],missingSkills:["Microservices","gRPC","AWS Lambda"],whyFits:"E-commerce API project shows real API-building at scale. Good entry point to grow into microservices.",priority:"Low",postedDays:12,logo:"PT",logoColor:"#D97706"},
+];
+
+const interviewQuestions = [
+  {id:1,question:"Walk me through the backend architecture of your e-commerce API project.",difficulty:"Medium",category:"Project Deep-dive",keywords:["architecture","API","database","scalability","endpoints","REST","cache","caching","rate","limit"],followUpEasy:"What technologies did you use and why did you choose them?",followUpHard:"How would you scale this API to handle 1 million requests per day?"},
+  {id:2,question:"How would you design a URL shortening service like bit.ly?",difficulty:"Hard",category:"System Design",keywords:["hash","database","caching","Redis","scalability","load","balancer","collision","encode","CDN","sharding"],followUpEasy:"Start with just the core data model — what tables would you need?",followUpHard:"How would you handle 100M URLs with sub-10ms redirect latency globally?"},
+  {id:3,question:"What are database indexes, and what tradeoffs do they introduce?",difficulty:"Medium",category:"Database",keywords:["index","B-tree","performance","write","read","storage","tradeoff","query","optimize","slow","fast"],followUpEasy:"Can you give a simple example of when you'd add an index to a table?",followUpHard:"Explain partial indexes, covering indexes, and when composite indexes outperform single-column ones."},
+  {id:4,question:"How would you deploy your REST API using Docker in a production environment?",difficulty:"Medium",category:"DevOps",keywords:["Docker","container","image","port","environment","compose","registry","dockerfile","build","run","volume"],followUpEasy:"What is a Dockerfile and what goes inside it?",followUpHard:"How does Docker Compose differ from Kubernetes, and when would you choose each?"},
+  {id:5,question:"Tell me about a technical challenge you faced in one of your projects and how you resolved it.",difficulty:"Easy",category:"Behavioral",keywords:["problem","solution","learned","team","debugging","approach","challenge","result","fixed","improved"],followUpEasy:"What was the most important lesson you took from that experience?",followUpHard:"How would you architect the solution differently now with what you know?"},
+];
+
+const feedbackReport = {
+  overallScore:74,roleReadiness:71,technicalScore:68,communicationScore:79,confidenceScore:72,engagementScore:80,
+  strengths:["Strong conceptual understanding of REST API design principles","Clear and structured communication style throughout","Good project depth with real-world impact quantification","Enthusiastic and engaged — maintained energy across all questions"],
+  weaknesses:["System design answers lack depth — needs structured CAP theorem/tradeoff thinking","Confidence dips noticeably on advanced scalability topics","Missing cloud-native deployment knowledge (ECS, Lambda, Kubernetes)","Answers tend to be brief — elaborate more with metrics and concrete outcomes"],
+  questionFeedback:[
+    {question:"Backend architecture deep-dive",score:78,feedback:"Good project walkthrough with REST and PostgreSQL mentioned. Missed discussing rate limiting, Redis caching layers, and horizontal scaling strategy.",improvement:"Add: rate limiting (e.g. token bucket), Redis caching, load balancing, and DB read replicas to architecture discussions."},
+    {question:"URL shortening system design",score:55,feedback:"Identified core components but skipped hashing collision handling. No mention of CDN, caching TTLs, or geographic distribution.",improvement:"Study: Base62 encoding, consistent hashing, Redis TTL-based caching, and global CDN edge patterns."},
+    {question:"Database indexes & tradeoffs",score:82,feedback:"Solid explanation of read vs write tradeoff. Correctly mentioned B-tree structure. Could add more on composite index ordering.",improvement:"Learn: partial indexes, covering indexes, and EXPLAIN ANALYZE output in PostgreSQL."},
+    {question:"Docker production deployment",score:70,feedback:"Covered Dockerfile basics and docker-compose well. Didn't discuss multi-stage builds, orchestration, or secrets management.",improvement:"Practice: Multi-stage Docker builds, Docker secrets, and basic Kubernetes pod/service deployments."},
+    {question:"Technical challenge story",score:85,feedback:"Excellent STAR-method storytelling. Showed clear growth mindset and problem-solving approach. Very engaging.",improvement:"Quantify outcomes more specifically — 'reduced API response time by 40%' beats 'made it much faster'."},
+  ],
+  prepPlan:[
+    {day:1,focus:"System Design Basics",tasks:["Grokking System Design Interview Ch.1-3","Design a Pastebin clone from scratch"]},
+    {day:2,focus:"Distributed Systems",tasks:["Study CAP theorem, eventual vs strong consistency","Watch MIT 6.824 Distributed Systems Lecture 1"]},
+    {day:3,focus:"Cloud Fundamentals",tasks:["Create free AWS account, explore EC2 + S3","Deploy simple Flask API on EC2 with security groups"]},
+    {day:4,focus:"Database Deep Dive",tasks:["10 SQL query optimization problems on Mode Analytics","Practice EXPLAIN ANALYZE on real PostgreSQL queries"]},
+    {day:5,focus:"Docker + Kubernetes",tasks:["Build multi-stage Docker image for your API","Follow official Kubernetes 'Hello World' tutorial"]},
+    {day:6,focus:"Mock Interviews",tasks:["2 system design mock interviews on Pramp.com","5 LeetCode medium problems (arrays + graphs)"]},
+    {day:7,focus:"Behavioral + Wrap-up",tasks:["Record and review 3 STAR-method stories on video","Re-read entire coaching report, note top 3 priorities"]},
+  ],
+};
+
+const recentInterviews = [
+  {id:1,role:"Backend Developer",date:"Dec 18, 2024",score:74,status:"Completed"},
+  {id:2,role:"Full Stack Engineer",date:"Dec 15, 2024",score:68,status:"Completed"},
+  {id:3,role:"Data Engineer",date:"Dec 10, 2024",score:61,status:"Completed"},
+];
+
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+
+const scoreColor = s => s>=80?"#10B981":s>=65?"#F59E0B":"#EF4444";
+const scoreLabel = s => s>=80?"Strong":s>=65?"Good":"Needs Work";
+const diffColor = d => d==="Easy"?"#10B981":d==="Medium"?"#F59E0B":"#EF4444";
+const priColor = p => p==="High"?"#10B981":p==="Medium"?"#F59E0B":"#94A3B8";
+const catColor = c => ({Language:"#7C3AED",Frontend:"#2563EB",Backend:"#059669",Database:"#D97706",DevOps:"#DC2626"}[c]||"#7C3AED");
+const initials = name => String(name||"Candidate").split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()).join("")||"C";
+
+function analyzeAnswer(text, question) {
+  const lower = text.toLowerCase();
+  const words = text.trim().split(/\s+/).length;
+  const hits = question.keywords.filter(k=>lower.includes(k.toLowerCase())).length;
+  const ratio = hits/question.keywords.length;
+  let tD=0,cD=0,mD=0,nextDiff=question.difficulty,nextQ=null,reasoning="";
+  if(words<20){
+    tD=-8;cD=-6;mD=-5;nextDiff="Easy";nextQ=question.followUpEasy;
+    reasoning="Answer was very brief. Switching to a simpler follow-up to help the candidate build confidence and elaborate.";
+  } else if(ratio>0.45&&words>60){
+    tD=10;cD=8;mD=7;nextDiff="Hard";nextQ=question.followUpHard;
+    reasoning="Strong technical answer with depth and relevant keywords. Increasing difficulty to probe advanced knowledge.";
+  } else if(ratio>0.25){
+    tD=5;cD=4;mD=4;nextDiff=question.difficulty;nextQ=null;
+    reasoning="Solid answer covering key concepts. Maintaining current difficulty. Candidate is performing well.";
+  } else {
+    tD=-3;cD=-2;mD=0;nextDiff="Easy";nextQ=question.followUpEasy;
+    reasoning="Answer missed key technical concepts. Asking a clarifying follow-up before advancing to the next topic.";
+  }
+  return{tD,cD,mD,nextDiff,nextQ,reasoning};
+}
+
+// ─── SHARED UI ────────────────────────────────────────────────────────────────
+
+function CircleScore({score,size=80,stroke=7,label,color}){
+  const r=(size-stroke*2)/2, circ=2*Math.PI*r, c=color||scoreColor(score);
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+      <svg width={size} height={size}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c} strokeWidth={stroke}
+          strokeDasharray={circ} strokeDashoffset={circ*(1-score/100)} strokeLinecap="round"
+          transform={`rotate(-90 ${size/2} ${size/2})`} style={{transition:"stroke-dashoffset 1.2s ease"}}/>
+        <text x={size/2} y={size/2+5} textAnchor="middle" fill="var(--text)" fontSize={size<60?11:14} fontWeight="700" fontFamily="DM Sans">{score}</text>
+      </svg>
+      {label&&<span style={{color:"var(--text-subtle)",fontSize:10,fontWeight:500}}>{label}</span>}
+    </div>
+  );
+}
+
+function SkillBar({name,level,category}){
+  const c=catColor(category);
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{color:"var(--text-muted)",fontSize:13}}>{name}</span>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:10,padding:"1px 8px",borderRadius:20,background:`${c}18`,color:c,border:`1px solid ${c}30`,fontWeight:500}}>{category}</span>
+          <span style={{color:"var(--text-subtle)",fontSize:12}}>{level}%</span>
+        </div>
+      </div>
+      <div style={{height:5,background:"var(--border)",borderRadius:3,overflow:"hidden"}}>
+        <div style={{height:5,width:`${level}%`,background:`linear-gradient(90deg,${c},${c}99)`,borderRadius:3,transition:"width 1.2s ease"}}/>
+      </div>
+    </div>
+  );
+}
+
+function Tag({children,color="#7C3AED"}){
+  return <span style={{fontSize:11,padding:"2px 9px",borderRadius:20,background:`${color}18`,color,border:`1px solid ${color}35`,fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>;
+}
+
+function Card({children,style={},className="",onClick}){
+  return(
+    <div onClick={onClick} className={`fade-in ${className}`}
+      style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:16,padding:"18px 20px",...style}}>
+      {children}
+    </div>
+  );
+}
+
+function Btn({children,onClick,variant="primary",disabled=false,style={}}){
+  const base={padding:"10px 18px",borderRadius:11,fontWeight:600,cursor:disabled?"not-allowed":"pointer",fontSize:14,fontFamily:"DM Sans,sans-serif",border:"none",transition:"all 0.15s",opacity:disabled?0.5:1,...style};
+  const variants={
+    primary:{...base,background:"linear-gradient(135deg,#7C3AED,#6D28D9)",color:"white",boxShadow:"0 4px 20px rgba(124,58,237,0.25)"},
+    secondary:{...base,background:"rgba(124,58,237,0.1)",color:"#A78BFA",border:"1px solid rgba(124,58,237,0.3)"},
+    danger:{...base,background:"linear-gradient(135deg,#DC2626,#B91C1C)",color:"white"},
+    success:{...base,background:"linear-gradient(135deg,#059669,#047857)",color:"white"},
+    ghost:{...base,background:"transparent",color:"var(--text-muted)",border:"1px solid var(--border)"},
+  };
+  return <button onClick={onClick} disabled={disabled} style={variants[variant]||variants.primary}>{children}</button>;
+}
+
+async function authRequest(path,payload){
+  const res=await fetch(`http://localhost:3001${path}`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload),
+  });
+  const data=await res.json();
+  if(!res.ok||!data.ok)throw new Error(data.error||"Authentication failed");
+  if(data.token)localStorage.setItem("roleready_token",data.token);
+  return data.user;
+}
+
+function InfiniteGridHero({navigate}){
+  const [count,setCount]=useState(0);
+  const [mouse,setMouse]=useState({x:540,y:120});
+  const [offset,setOffset]=useState({x:0,y:0});
+  useEffect(()=>{
+    const id=setInterval(()=>setOffset(o=>({x:(o.x+0.5)%40,y:(o.y+0.5)%40})),32);
+    return()=>clearInterval(id);
+  },[]);
+  const onMove=e=>{
+    const r=e.currentTarget.getBoundingClientRect();
+    setMouse({x:e.clientX-r.left,y:e.clientY-r.top});
+  };
+  const grid=opacity=>(
+    <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",color:"var(--hero-grid)",opacity}}>
+      <defs>
+        <pattern id={`grid-${opacity}`} width="40" height="40" patternUnits="userSpaceOnUse" x={offset.x} y={offset.y}>
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#grid-${opacity})`}/>
+    </svg>
+  );
+  return(
+    <div onMouseMove={onMove} style={{position:"relative",minHeight:270,borderRadius:22,overflow:"hidden",border:"1px solid var(--border)",background:"var(--surface)",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 28px 90px rgba(15,23,42,0.18)"}}>
+      {grid(0.18)}
+      <div style={{position:"absolute",inset:0,WebkitMaskImage:`radial-gradient(300px circle at ${mouse.x}px ${mouse.y}px, black, transparent)`,maskImage:`radial-gradient(300px circle at ${mouse.x}px ${mouse.y}px, black, transparent)`}}>
+        {grid(0.9)}
+      </div>
+      <div style={{position:"absolute",right:"-12%",top:"-24%",width:"38%",height:"58%",borderRadius:"50%",background:"var(--hero-glow-a)",filter:"blur(90px)"}}/>
+      <div style={{position:"absolute",right:"12%",top:"-14%",width:"20%",height:"36%",borderRadius:"50%",background:"var(--hero-glow-b)",filter:"blur(80px)"}}/>
+      <div style={{position:"absolute",left:"-12%",bottom:"-26%",width:"42%",height:"62%",borderRadius:"50%",background:"var(--hero-glow-c)",filter:"blur(95px)"}}/>
+      <div style={{position:"relative",zIndex:1,textAlign:"center",maxWidth:760,padding:"34px 24px",pointerEvents:"none"}}>
+        <div style={{display:"inline-flex",gap:8,alignItems:"center",padding:"6px 12px",borderRadius:999,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.28)",color:"#A78BFA",fontSize:12,fontWeight:700,marginBottom:14}}>
+          <span>AGENTIC MOCK INTERVIEW</span>
+        </div>
+        <h1 style={{color:"var(--text)",fontSize:38,lineHeight:1.08,fontWeight:800,letterSpacing:"-0.8px",marginBottom:12}}>
+          Turn one resume into a live adaptive interview.
+        </h1>
+        <p style={{color:"var(--text-muted)",fontSize:15,lineHeight:1.7,margin:"0 auto 22px",maxWidth:620}}>
+          Role inference, job matching, adaptive questions, multimodal scoring, and a coaching report in one polished flow.
+        </p>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",pointerEvents:"auto"}}>
+          <Btn onClick={()=>navigate("interview")} style={{padding:"12px 22px"}}>Start Interview →</Btn>
+          <Btn variant="secondary" onClick={()=>{setCount(count+1);navigate("analysis");}} style={{padding:"12px 22px"}}>Analyze Resume ({count})</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavBar({navigate,active,onLogout=()=>{}}){
+  const {isLight,toggleTheme}=useContext(ThemeContext);
+  const items=[{id:"dashboard",label:"Dashboard",icon:"⚡"},{id:"analysis",label:"Analysis",icon:"🔍"},{id:"jobs",label:"Jobs",icon:"💼"},{id:"interview",label:"Interview",icon:"🎯"},{id:"report",label:"Report",icon:"📊"}];
+  return(
+    <div style={{padding:"14px 28px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--surface)",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(12px)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,#7C3AED,#6D28D9)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 4px 12px rgba(124,58,237,0.4)"}}>⚡</div>
+        <span style={{fontWeight:700,fontSize:16,color:"var(--text)",letterSpacing:"-0.3px"}}>RoleReady<span style={{color:"#7C3AED"}}> AI</span></span>
+      </div>
+      <div style={{display:"flex",gap:2,background:"var(--card)",padding:"4px",borderRadius:12,border:"1px solid var(--border)"}}>
+        {items.map(n=>(
+          <button key={n.id} onClick={()=>navigate(n.id)}
+            style={{padding:"7px 16px",borderRadius:9,border:"none",background:active===n.id?"linear-gradient(135deg,#7C3AED,#6D28D9)":"transparent",color:active===n.id?"white":"var(--text-subtle)",cursor:"pointer",fontSize:13,fontWeight:active===n.id?600:400,transition:"all 0.2s",fontFamily:"DM Sans,sans-serif",boxShadow:active===n.id?"0 2px 8px rgba(124,58,237,0.3)":"none"}}>
+            {n.label}
+          </button>
+        ))}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <button onClick={toggleTheme} title={isLight?"Switch to dark mode":"Switch to light mode"}
+          style={{width:38,height:38,borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>
+          {isLight?"☾":"☀"}
+        </button>
+        <div style={{textAlign:"right"}}>
+          <div style={{color:"var(--text-soft)",fontSize:13,fontWeight:600}}>{appUser.name}</div>
+          <div style={{color:"var(--text-subtle)",fontSize:11,textTransform:"capitalize"}}>{appUser.provider} account</div>
+        </div>
+        <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white"}}>{initials(appUser.name)}</div>
+        <button onClick={onLogout} title="Sign out"
+          style={{width:34,height:34,borderRadius:11,border:"1px solid var(--border)",background:"transparent",color:"var(--text-subtle)",cursor:"pointer",fontSize:13}}>
+          ↪
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── AUTH SCREEN ──────────────────────────────────────────────────────────────
+
+function AuthScreen({onAuth}){
+  const {isLight,toggleTheme}=useContext(ThemeContext);
+  const [mode,setMode]=useState("login");
+  const [email,setEmail]=useState("");
+  const [pw,setPw]=useState("");
+  const [name,setName]=useState("");
+  const [authError,setAuthError]=useState("");
+  const [loading,setLoading]=useState(false);
+  const inp={width:"100%",background:"var(--panel)",border:"1px solid var(--border)",borderRadius:10,padding:"11px 14px",color:"var(--text)",fontSize:14,outline:"none",fontFamily:"DM Sans,sans-serif",boxSizing:"border-box"};
+  const submitAuth=async(provider=null)=>{
+    setLoading(true);
+    setAuthError("");
+    try{
+      const user=provider
+        ? await authRequest("/api/auth/oauth",{provider})
+        : await authRequest(mode==="login"?"/api/auth/login":"/api/auth/signup",{name:name||"User",email,password:pw});
+      appUser=user;
+      onAuth(user);
+    }catch(err){
+      setAuthError(err.message||"Could not sign in");
+    }finally{
+      setLoading(false);
+    }
+  };
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"DM Sans,sans-serif",padding:"20px"}}>
+      <button onClick={toggleTheme} title={isLight?"Switch to dark mode":"Switch to light mode"}
+        style={{position:"fixed",top:18,right:18,zIndex:20,width:40,height:40,borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 10px 30px rgba(15,23,42,0.12)"}}>
+        {isLight?"☾":"☀"}
+      </button>
+      <div style={{display:"flex",maxWidth:880,width:"100%",borderRadius:24,overflow:"hidden",border:"1px solid var(--border)",boxShadow:"0 40px 120px rgba(124,58,237,0.18)"}}>
+        {/* Left */}
+        <div style={{width:380,background:"radial-gradient(ellipse at 30% 20%,rgba(124,58,237,0.5) 0%,transparent 60%),linear-gradient(160deg,#12072b 0%,var(--surface) 60%)",padding:"50px 40px",display:"flex",flexDirection:"column",position:"relative",overflow:"hidden",flexShrink:0}}>
+          <div style={{position:"absolute",bottom:-60,right:-60,width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,40,217,0.35) 0%,transparent 70%)",filter:"blur(30px)"}}/>
+          <div style={{position:"relative",zIndex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:44}}>
+              <div style={{width:38,height:38,borderRadius:11,background:"linear-gradient(135deg,#7C3AED,#6D28D9)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 6px 20px rgba(124,58,237,0.4)"}}>⚡</div>
+              <span style={{color:"white",fontWeight:700,fontSize:19,letterSpacing:"-0.3px"}}>RoleReady AI</span>
+            </div>
+            <h2 style={{color:"white",fontSize:30,fontWeight:700,lineHeight:1.25,marginBottom:14}}>Land your dream role, interview-ready.</h2>
+            <p style={{color:"var(--text-muted)",fontSize:14,lineHeight:1.75,marginBottom:40}}>AI-powered mock interviews that adapt to your skills, score your performance in real-time, and generate a personalized coaching report.</p>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {["Upload resume → AI infers your best-fit roles","Adaptive interviewer that adjusts to your level","Multimodal scoring: technical + communication + confidence"].map((t,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                  <div style={{width:26,height:26,borderRadius:8,background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#A78BFA",flexShrink:0,marginTop:1}}>{i+1}</div>
+                  <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.6}}>{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Right */}
+        <div style={{flex:1,background:"var(--surface)",padding:"50px 44px",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+          <div style={{marginBottom:32}}>
+            <h2 style={{color:"var(--text)",fontSize:26,fontWeight:700,marginBottom:6,letterSpacing:"-0.5px"}}>{mode==="login"?"Welcome back":"Create account"}</h2>
+            <p style={{color:"var(--text-faint)",fontSize:14}}>{mode==="login"?"Sign in to continue your interview prep journey.":"Start your AI-powered interview prep today."}</p>
+          </div>
+          {mode==="signup"&&(
+            <div style={{marginBottom:16}}>
+              <label style={{color:"var(--text-muted)",fontSize:12,marginBottom:6,display:"block",fontWeight:500}}>Full Name</label>
+              <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" style={inp}/>
+            </div>
+          )}
+          <div style={{marginBottom:16}}>
+            <label style={{color:"var(--text-muted)",fontSize:12,marginBottom:6,display:"block",fontWeight:500}}>Email</label>
+            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" type="email" style={inp}/>
+          </div>
+          <div style={{marginBottom:28}}>
+            <label style={{color:"var(--text-muted)",fontSize:12,marginBottom:6,display:"block",fontWeight:500}}>Password</label>
+            <input value={pw} onChange={e=>setPw(e.target.value)} placeholder="••••••••" type="password" style={inp}/>
+            <div style={{color:"var(--text-faint)",fontSize:11,marginTop:5}}>Must be at least 8 characters</div>
+          </div>
+          {authError&&<div style={{color:"#EF4444",fontSize:12,lineHeight:1.5,marginBottom:12}}>{authError}</div>}
+          <button onClick={()=>submitAuth()} disabled={loading} style={{width:"100%",padding:"13px",borderRadius:12,background:"linear-gradient(135deg,#7C3AED,#6D28D9)",color:"white",fontWeight:700,fontSize:15,border:"none",cursor:loading?"not-allowed":"pointer",opacity:loading?0.65:1,boxShadow:"0 8px 32px rgba(124,58,237,0.35)",fontFamily:"DM Sans,sans-serif",marginBottom:16}}>
+            {loading?"Signing in...":mode==="login"?"Sign In →":"Create Account →"}
+          </button>
+          <div style={{display:"flex",gap:12,marginBottom:20}}>
+            {["Google","GitHub"].map(p=>(
+              <button key={p} onClick={()=>submitAuth(p.toLowerCase())} disabled={loading} style={{flex:1,padding:"11px",borderRadius:11,background:"transparent",border:"1px solid var(--border)",color:"var(--text-muted)",cursor:loading?"not-allowed":"pointer",fontSize:13,fontWeight:500,fontFamily:"DM Sans,sans-serif",opacity:loading?0.65:1}}>
+                {p==="Google"?"🌐":"🐙"} Continue with {p}
+              </button>
+            ))}
+          </div>
+          <p style={{color:"var(--text-faint)",fontSize:13,textAlign:"center"}}>
+            {mode==="login"?"Don't have an account? ":"Already have an account? "}
+            <span onClick={()=>setMode(mode==="login"?"signup":"login")} style={{color:"#7C3AED",cursor:"pointer",fontWeight:600}}>
+              {mode==="login"?"Sign up free":"Log in"}
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+
+function DashboardScreen({navigate,onLogout}){
+  const [uploaded,setUploaded]=useState(false);
+  const [uploading,setUploading]=useState(false);
+  const [uploadError,setUploadError]=useState("");
+  const [parseInfo,setParseInfo]=useState(null);
+  const [dragging,setDragging]=useState(false);
+  const [fname,setFname]=useState("");
+
+  const doUpload=async(file)=>{
+    if(!file)return;
+    setFname(file.name||"Resume.pdf");
+    setUploading(true);
+    setUploadError("");
+    try{
+      const form=new FormData();
+      form.append("resume",file);
+      const res=await fetch("http://localhost:3001/api/analyze-resume",{method:"POST",body:form});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw new Error(data.error||"Resume analysis failed");
+      resumeAnalysis=data.analysis;
+      if(data.candidate)candidate=data.candidate;
+      setParseInfo({
+        source:data.source,
+        textPreview:data.textPreview,
+        warning:data.warning,
+      });
+      setUploaded(true);
+    }catch(err){
+      setUploadError(err.message||"Could not analyze resume. Start the backend and try again.");
+    }finally{
+      setUploading(false);
+    }
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="dashboard" onLogout={onLogout}/>
+      <div style={{maxWidth:1140,margin:"0 auto",padding:"28px 24px"}}>
+        <InfiniteGridHero navigate={navigate}/>
+        {/* Greeting */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:26}}>
+          <div>
+            <h1 style={{fontSize:24,fontWeight:700,marginBottom:4,letterSpacing:"-0.5px"}}>Good morning, {appUser.name.split(" ")[0]||"there"} 👋</h1>
+            <p style={{color:"var(--text-subtle)",fontSize:14}}>AI inferred <span style={{color:"#10B981",fontWeight:600}}>{resumeAnalysis.bestFitRoles[0]?.role||"your top role"}</span> as your strongest path. The flow adapts from your resume evidence.</p>
+          </div>
+          <Btn onClick={()=>navigate("interview")} style={{padding:"11px 24px",fontSize:15}}>Start Interview →</Btn>
+        </div>
+
+        {/* Top row */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:18}}>
+          {/* Resume upload */}
+          <Card>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+              <span>📄</span>
+              <span style={{fontWeight:600,fontSize:15}}>Resume</span>
+              {uploading&&<span style={{marginLeft:"auto",color:"#F59E0B",fontSize:11,background:"#F59E0B18",padding:"2px 10px",borderRadius:20,border:"1px solid #F59E0B30"}}>Analyzing...</span>}
+              {uploaded&&!uploading&&<span style={{marginLeft:"auto",color:"#10B981",fontSize:11,background:"#10B98118",padding:"2px 10px",borderRadius:20,border:"1px solid #10B98130"}}>✓ Analyzed</span>}
+            </div>
+            {!uploaded?(
+              <>
+                <div onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)}
+                  onDrop={e=>{e.preventDefault();setDragging(false);doUpload(e.dataTransfer?.files?.[0]);}}
+                  onClick={()=>document.getElementById("rInp").click()}
+                  style={{border:`2px dashed ${dragging?"#7C3AED":"var(--border)"}`,borderRadius:12,padding:"22px 16px",textAlign:"center",cursor:"pointer",background:dragging?"rgba(124,58,237,0.05)":"transparent",transition:"all 0.2s",marginBottom:12}}>
+                  <input id="rInp" type="file" accept=".pdf,.txt" style={{display:"none"}} onChange={e=>doUpload(e.target.files?.[0])}/>
+                  <div style={{fontSize:28,marginBottom:8}}>{uploading?"⏳":"📤"}</div>
+                  <div style={{color:"var(--text-muted)",fontSize:13}}>{uploading?"Analyzing resume...":<>Drop resume or <span style={{color:"#7C3AED",fontWeight:500}}>browse</span></>}</div>
+                  <div style={{color:"#475569",fontSize:11,marginTop:4}}>PDF or TXT · max 5MB</div>
+                </div>
+                {uploadError&&<div style={{color:"#EF4444",fontSize:12,lineHeight:1.5,marginBottom:10}}>{uploadError}</div>}
+                <Btn onClick={()=>{setFname("Aarav_Mehta_Resume.pdf");candidate={name:"Aarav Mehta",email:"aarav.mehta@gmail.com",targetRoles:["Backend Developer","Full Stack Developer","Data Engineer"],skills:["Python","React","SQL","REST APIs","PostgreSQL","Docker","JavaScript","Node.js","Git"],weakAreas:["System Design","Cloud Deployment","Distributed Systems"],projects:[{name:"E-commerce API",tech:["Python","FastAPI","PostgreSQL","Docker"],impact:"10k+ req/day"},{name:"Analytics Dashboard",tech:["React","D3.js","REST APIs","SQL"],impact:"60% faster reports"},{name:"Resume Parser",tech:["Python","NLP","spaCy"],impact:"85% accuracy"}],experienceLevel:"Junior",totalExperience:"1.5 years"};setParseInfo({source:"sample",textPreview:"Sample resume loaded for demo: Python, React, SQL, REST APIs, PostgreSQL, Docker, e-commerce API, analytics dashboard.",warning:null});setUploaded(true);}} style={{width:"100%"}}>Use Sample Resume</Btn>
+              </>
+            ):(
+              <>
+                <div style={{background:"var(--surface)",borderRadius:10,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,marginBottom:14,border:"1px solid var(--border)"}}>
+                  <span style={{fontSize:20}}>📋</span>
+                  <span style={{color:"var(--text-soft)",fontSize:13}}>{fname||`${candidate.name.replace(/\s+/g,"_")}_Resume.pdf`}</span>
+                  <span style={{marginLeft:"auto",color:"#10B981",fontSize:12}}>✓</span>
+                </div>
+                {parseInfo&&(
+                  <div style={{background:"var(--surface)",borderRadius:10,padding:"11px 13px",border:"1px solid var(--border)",marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+                      <span style={{color:"var(--text-muted)",fontSize:11,fontWeight:700,letterSpacing:"0.7px"}}>PARSED RESUME</span>
+                      <span style={{
+                        color:parseInfo.source==="openai"?"#10B981":parseInfo.source==="sample"?"#A78BFA":"#F59E0B",
+                        background:parseInfo.source==="openai"?"#10B98118":parseInfo.source==="sample"?"rgba(124,58,237,0.15)":"#F59E0B18",
+                        border:`1px solid ${parseInfo.source==="openai"?"#10B98135":parseInfo.source==="sample"?"rgba(124,58,237,0.35)":"#F59E0B35"}`,
+                        borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:700,textTransform:"uppercase",whiteSpace:"nowrap"
+                      }}>
+                        {parseInfo.source}
+                      </span>
+                    </div>
+                    <p style={{color:"var(--text-muted)",fontSize:12,lineHeight:1.55,maxHeight:76,overflow:"hidden"}}>
+                      {parseInfo.textPreview||"Text extracted successfully."}
+                    </p>
+                    {parseInfo.warning&&(
+                      <div style={{marginTop:8,color:"#F59E0B",fontSize:11,lineHeight:1.45}}>
+                        AI quota unavailable, using safe fallback analysis.
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{display:"flex",gap:8}}>
+                  <Btn onClick={()=>navigate("analysis")} style={{flex:1}}>View Analysis</Btn>
+                  <Btn variant="ghost" onClick={()=>{setUploaded(false);setParseInfo(null);}}>↺</Btn>
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Readiness */}
+          <Card>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>Interview Readiness</div>
+            <div style={{display:"flex",justifyContent:"space-around",marginBottom:18}}>
+              <CircleScore score={74} label="Overall" size={72}/>
+              <CircleScore score={68} label="Technical" size={72} color="#2563EB"/>
+              <CircleScore score={79} label="Comms" size={72} color="#10B981"/>
+            </div>
+            <Btn onClick={()=>navigate("interview")} style={{width:"100%"}}>🎯 Start New Interview</Btn>
+          </Card>
+
+          {/* Best-fit roles */}
+          <Card>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>Best-Fit Roles</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {resumeAnalysis.bestFitRoles.map(r=>(
+                <div key={r.role} style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{color:"var(--text-soft)",fontSize:13,fontWeight:500,marginBottom:4}}>{r.role}</div>
+                    <div style={{height:4,background:"var(--border)",borderRadius:2}}>
+                      <div style={{height:4,width:`${r.confidence}%`,background:"linear-gradient(90deg,#7C3AED,#A78BFA)",borderRadius:2,transition:"width 1.2s ease"}}/>
+                    </div>
+                  </div>
+                  <span style={{color:scoreColor(r.confidence),fontSize:14,fontWeight:700,minWidth:36}}>{r.confidence}%</span>
+                </div>
+              ))}
+            </div>
+            <Btn variant="secondary" onClick={()=>navigate("jobs")} style={{width:"100%",marginTop:16}}>View Job Matches →</Btn>
+          </Card>
+        </div>
+
+        {/* Bottom row */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:16}}>
+          <Card>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <span style={{fontWeight:600,fontSize:15}}>Recent Interviews</span>
+              <Btn variant="secondary" onClick={()=>navigate("interview")} style={{padding:"6px 14px",fontSize:12}}>+ New Interview</Btn>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {recentInterviews.map(r=>(
+                <div key={r.id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",background:"var(--surface)",borderRadius:12,border:"1px solid var(--border)",cursor:"pointer"}} className="card-hover" onClick={()=>navigate("report")}>
+                  <div style={{width:40,height:40,borderRadius:11,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🎯</div>
+                  <div style={{flex:1}}>
+                    <div style={{color:"var(--text-soft)",fontSize:14,fontWeight:500}}>{r.role}</div>
+                    <div style={{color:"var(--text-subtle)",fontSize:12,marginTop:1}}>{r.date}</div>
+                  </div>
+                  <CircleScore score={r.score} size={44} stroke={4}/>
+                  <span style={{color:"#10B981",fontSize:11,background:"#10B98118",padding:"3px 10px",borderRadius:20,border:"1px solid #10B98130"}}>{r.status}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>🚨 Gaps to Fix</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {resumeAnalysis.weakMissingAreas.slice(0,4).map(w=>(
+                <div key={w.area} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:w.severity==="high"?"#EF4444":w.severity==="medium"?"#F59E0B":"var(--text-muted)",flexShrink:0}}/>
+                  <div style={{flex:1}}>
+                    <div style={{color:"var(--text-soft)",fontSize:13}}>{w.area}</div>
+                  </div>
+                  <span style={{fontSize:10,color:w.severity==="high"?"#EF4444":w.severity==="medium"?"#F59E0B":"var(--text-muted)",textTransform:"uppercase",fontWeight:600}}>{w.severity}</span>
+                </div>
+              ))}
+            </div>
+            <Btn onClick={()=>navigate("report")} style={{width:"100%",marginTop:16}}>View Full Prep Plan</Btn>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ANALYSIS SCREEN ──────────────────────────────────────────────────────────
+
+function AnalysisScreen({navigate,onLogout}){
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="analysis" onLogout={onLogout}/>
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 24px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:26}}>
+          <div>
+            <div style={{color:"#7C3AED",fontSize:12,fontWeight:600,marginBottom:4,letterSpacing:"1px"}}>RESUME ANALYSIS</div>
+            <h1 style={{fontSize:24,fontWeight:700,letterSpacing:"-0.5px"}}>{candidate.name}'s Resume Intelligence</h1>
+            <p style={{color:"var(--text-subtle)",fontSize:14,marginTop:3}}>AI extracted role signals, gaps, and interview focus areas from the uploaded resume</p>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <Btn onClick={()=>navigate("jobs")} variant="secondary">💼 View Jobs</Btn>
+            <Btn onClick={()=>navigate("interview")}>🎯 Start Interview →</Btn>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+          <Card>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:18}}>📊 Skill Proficiency</div>
+            <div style={{display:"flex",flexDirection:"column",gap:13}}>
+              {resumeAnalysis.extractedSkills.map(s=><SkillBar key={s.name} {...s}/>)}
+            </div>
+          </Card>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <Card>
+              <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>👤 Profile Summary</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[["Experience Level",candidate.experienceLevel],["Total Experience",candidate.totalExperience],["Education","B.Tech CS, 2023"],["Notable Projects",`${candidate.projects.length} projects`]].map(([k,v])=>(
+                  <div key={k} style={{background:"var(--surface)",borderRadius:10,padding:"10px 14px",border:"1px solid var(--border)"}}>
+                    <div style={{color:"var(--text-subtle)",fontSize:11,marginBottom:2}}>{k}</div>
+                    <div style={{color:"var(--text-soft)",fontSize:14,fontWeight:500}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>🛠 Projects</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {candidate.projects.map(p=>(
+                  <div key={p.name} style={{background:"var(--surface)",borderRadius:11,padding:"12px 14px",border:"1px solid var(--border)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{color:"var(--text-soft)",fontWeight:600,fontSize:14}}>{p.name}</span>
+                      <span style={{color:"#10B981",fontSize:11,background:"#10B98118",padding:"2px 8px",borderRadius:20}}>{p.impact}</span>
+                    </div>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                      {p.tech.map(t=><Tag key={t} color="#7C3AED">{t}</Tag>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>🎯 Best-Fit Roles</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {resumeAnalysis.bestFitRoles.map((r,i)=>(
+                <div key={r.role} style={{background:"var(--surface)",borderRadius:12,padding:"14px",border:`1px solid ${i===0?"rgba(124,58,237,0.4)":"var(--border)"}`}}>
+                  <div style={{display:"flex",alignItems:"center",marginBottom:8}}>
+                    <span style={{color:"var(--text-soft)",fontWeight:600,fontSize:14,flex:1}}>{r.role}</span>
+                    {i===0&&<span style={{fontSize:11,color:"#A78BFA",background:"rgba(124,58,237,0.15)",padding:"2px 8px",borderRadius:20,marginRight:10}}>Top Match</span>}
+                    <span style={{color:scoreColor(r.confidence),fontWeight:700,fontSize:18}}>{r.confidence}%</span>
+                  </div>
+                  <div style={{height:5,background:"var(--border)",borderRadius:3,marginBottom:8}}>
+                    <div style={{height:5,width:`${r.confidence}%`,background:"linear-gradient(90deg,#7C3AED,#A78BFA)",borderRadius:3}}/>
+                  </div>
+                  <p style={{color:"var(--text-subtle)",fontSize:12}}>{r.reasoning}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <Card>
+              <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>🔎 Interview Focus Areas</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {resumeAnalysis.interviewFocusAreas.map((f,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<resumeAnalysis.interviewFocusAreas.length-1?"1px solid var(--border)":"none"}}>
+                    <div style={{width:24,height:24,borderRadius:7,background:"rgba(124,58,237,0.15)",border:"1px solid rgba(124,58,237,0.35)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#A78BFA",flexShrink:0,fontWeight:700}}>{i+1}</div>
+                    <span style={{color:"var(--text-muted)",fontSize:13}}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>⚠️ Gaps to Address</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {resumeAnalysis.weakMissingAreas.map(w=>(
+                  <div key={w.area} style={{background:"var(--surface)",borderRadius:10,padding:"10px 14px",border:"1px solid var(--border)"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                      <div style={{width:7,height:7,borderRadius:"50%",background:w.severity==="high"?"#EF4444":w.severity==="medium"?"#F59E0B":"var(--text-muted)",flexShrink:0}}/>
+                      <span style={{color:"var(--text-soft)",fontSize:13,fontWeight:500,flex:1}}>{w.area}</span>
+                      <span style={{fontSize:10,color:w.severity==="high"?"#EF4444":w.severity==="medium"?"#F59E0B":"var(--text-muted)",textTransform:"uppercase",fontWeight:600}}>{w.severity}</span>
+                    </div>
+                    <p style={{color:"var(--text-subtle)",fontSize:12,paddingLeft:15}}>{w.suggestion}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── JOBS SCREEN ──────────────────────────────────────────────────────────────
+
+function JobsScreen({navigate,onLogout}){
+  const [expanded,setExpanded]=useState(null);
+  const [filter,setFilter]=useState("All");
+  const filters=["All","High Match","Internship","Remote"];
+
+  const filtered=jobRecommendations.filter(j=>{
+    if(filter==="All")return true;
+    if(filter==="High Match")return j.matchScore>=80;
+    if(filter==="Internship")return j.type==="Internship";
+    if(filter==="Remote")return j.location==="Remote";
+    return true;
+  });
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="jobs" onLogout={onLogout}/>
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 24px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:24}}>
+          <div>
+            <div style={{color:"#7C3AED",fontSize:12,fontWeight:600,marginBottom:4,letterSpacing:"1px"}}>JOB MATCHES</div>
+            <h1 style={{fontSize:24,fontWeight:700,letterSpacing:"-0.5px"}}>Recommended for You</h1>
+            <p style={{color:"var(--text-subtle)",fontSize:14,marginTop:3}}>{jobRecommendations.length} roles matched · Ranked by AI compatibility score</p>
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            {filters.map(f=>(
+              <button key={f} onClick={()=>setFilter(f)}
+                style={{padding:"7px 14px",borderRadius:9,border:`1px solid ${filter===f?"#7C3AED":"var(--border)"}`,background:filter===f?"rgba(124,58,237,0.15)":"transparent",color:filter===f?"#A78BFA":"var(--text-subtle)",cursor:"pointer",fontSize:13,fontFamily:"DM Sans,sans-serif",fontWeight:filter===f?600:400}}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          {filtered.map(job=>(
+            <div key={job.id} onClick={()=>setExpanded(expanded===job.id?null:job.id)} className="card-hover"
+              style={{background:"var(--card)",border:`1px solid ${expanded===job.id?"#7C3AED":"var(--border)"}`,borderRadius:16,padding:"20px",cursor:"pointer",transition:"all 0.2s",boxShadow:expanded===job.id?"0 0 0 1px rgba(124,58,237,0.2),0 20px 60px rgba(124,58,237,0.1)":"none"}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:14}}>
+                <div style={{width:44,height:44,borderRadius:12,background:`${job.logoColor}20`,border:`1px solid ${job.logoColor}40`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:13,color:job.logoColor,flexShrink:0}}>{job.logo}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:"var(--text)",fontWeight:600,fontSize:15,marginBottom:2}}>{job.title}</div>
+                  <div style={{color:"var(--text-muted)",fontSize:13}}>{job.company} · {job.location}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{color:scoreColor(job.matchScore),fontWeight:700,fontSize:22,lineHeight:1}}>{job.matchScore}%</div>
+                  <div style={{color:"var(--text-subtle)",fontSize:11}}>match</div>
+                </div>
+              </div>
+
+              <div style={{height:5,background:"var(--border)",borderRadius:3,marginBottom:12}}>
+                <div style={{height:5,width:`${job.matchScore}%`,background:`linear-gradient(90deg,${scoreColor(job.matchScore)},${scoreColor(job.matchScore)}80)`,borderRadius:3}}/>
+              </div>
+
+              <div style={{display:"flex",gap:7,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+                <Tag color="var(--text-muted)">{job.type}</Tag>
+                <Tag color="#7C3AED">{job.salary}</Tag>
+                <Tag color="var(--text-subtle)">Posted {job.postedDays}d ago</Tag>
+                <span style={{marginLeft:"auto",color:priColor(job.priority),fontSize:11,fontWeight:700}}>{job.priority} Priority</span>
+              </div>
+
+              {expanded===job.id?(
+                <div style={{borderTop:"1px solid var(--border)",paddingTop:16,marginTop:4}} className="fade-in">
+                  <p style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.7,marginBottom:14}}>{job.whyFits}</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                    <div>
+                      <div style={{color:"#10B981",fontSize:11,marginBottom:8,fontWeight:600}}>✓ Matching Skills</div>
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                        {job.matchingSkills.map(s=><Tag key={s} color="#10B981">{s}</Tag>)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{color:"#EF4444",fontSize:11,marginBottom:8,fontWeight:600}}>✗ Skills to Learn</div>
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                        {job.missingSkills.map(s=><Tag key={s} color="#EF4444">{s}</Tag>)}
+                      </div>
+                    </div>
+                  </div>
+                  <Btn onClick={e=>{e.stopPropagation();navigate("interview");}} style={{width:"100%"}}>Practice Interview for This Role →</Btn>
+                </div>
+              ):(
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {job.matchingSkills.slice(0,4).map(s=><Tag key={s} color="#10B981">{s}</Tag>)}
+                  {job.matchingSkills.length>4&&<Tag color="var(--text-subtle)">+{job.matchingSkills.length-4} more</Tag>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── INTERVIEW SCREEN ─────────────────────────────────────────────────────────
+
+async function requestInterviewTurn(payload){
+  const res=await fetch("http://localhost:3001/api/interview-turn",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload),
+  });
+  const data=await res.json();
+  if(!res.ok||!data.ok)throw new Error(data.error||"Interview agent failed");
+  return data.turn;
+}
+
+function InterviewScreen({navigate,onLogout}){
+  const [phase,setPhase]=useState("ready");
+  const [qIdx,setQIdx]=useState(0);
+  const [answer,setAnswer]=useState("");
+  const [transcript,setTranscript]=useState([]);
+  const [scores,setScores]=useState({technical:58,communication:63,confidence:60,engagement:68});
+  const [difficulty,setDifficulty]=useState("Medium");
+  const [reasoning,setReasoning]=useState("Loaded candidate profile. Preparing adaptive first question based on resume analysis...");
+  const [currentQ,setCurrentQ]=useState(interviewQuestions[0].question);
+  const [questionCategory,setQuestionCategory]=useState("Resume Calibration");
+  const [agentSource,setAgentSource]=useState("local");
+  const [coachSignal,setCoachSignal]=useState("Resume-aware calibration");
+  const [thinking,setThinking]=useState(false);
+  const [elapsed,setElapsed]=useState(0);
+  const [bars,setBars]=useState(Array(14).fill(0).map(()=>Math.random()*10+2));
+  const [answered,setAnswered]=useState(0);
+  const timerRef=useRef(null);
+  const scrollRef=useRef(null);
+
+  useEffect(()=>{
+    if(phase==="active"){
+      timerRef.current=setInterval(()=>setElapsed(e=>e+1),1000);
+      const bInt=setInterval(()=>setBars(Array(14).fill(0).map(()=>Math.random()*10+2)),350);
+      return()=>{clearInterval(timerRef.current);clearInterval(bInt);};
+    }
+    return()=>clearInterval(timerRef.current);
+  },[phase]);
+
+  useEffect(()=>{
+    if(scrollRef.current){scrollRef.current.scrollTop=scrollRef.current.scrollHeight;}
+  },[transcript,thinking]);
+
+  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  const targetRole=resumeAnalysis.bestFitRoles?.[0]?.role||"Backend Developer";
+
+  const startInterview=async()=>{
+    setPhase("active");
+    setThinking(true);
+    setTranscript([]);
+    try{
+      const turn=await requestInterviewTurn({
+        resumeAnalysis,
+        targetRole,
+        difficulty:"Medium",
+        answer:"",
+        currentQuestion:"",
+        transcript:[],
+        answered:0,
+      });
+      setCurrentQ(turn.nextQuestion);
+      setDifficulty(turn.difficulty||"Medium");
+      setReasoning(turn.reasoning);
+      setQuestionCategory(turn.category||"Resume Deep-dive");
+      setAgentSource(turn.source||"agent");
+      setCoachSignal(turn.coachSignal||"Interview calibrated from resume");
+      setTranscript([{role:"ai",text:turn.nextQuestion}]);
+    }catch(err){
+      const first=`Your resume is strongest for ${targetRole}. Walk me through your most relevant project and explain the architecture, tradeoffs, and impact.`;
+      setCurrentQ(first);
+      setReasoning("Backend agent unavailable, so I used the local adaptive interviewer seeded by the resume's top role.");
+      setQuestionCategory("Resume Deep-dive");
+      setAgentSource("local-fallback");
+      setCoachSignal("Local fallback active");
+      setTranscript([{role:"ai",text:first}]);
+    }finally{
+      setThinking(false);
+    }
+  };
+
+  const submit=async()=>{
+    if(!answer.trim()||thinking)return;
+    const submitted=answer;
+    const previousTranscript=[...transcript,{role:"candidate",text:submitted}];
+    setTranscript(previousTranscript);
+    setThinking(true);
+    setAnswer("");
+    setAnswered(a=>a+1);
+    try{
+      const turn=await requestInterviewTurn({
+        resumeAnalysis,
+        targetRole,
+        difficulty,
+        answer:submitted,
+        currentQuestion:currentQ,
+        transcript:previousTranscript.slice(-8),
+        answered:answered+1,
+        scores,
+      });
+      if(turn.scores){
+        setScores({
+          technical:Math.max(10,Math.min(100,turn.scores.technical??scores.technical)),
+          communication:Math.max(10,Math.min(100,turn.scores.communication??scores.communication)),
+          confidence:Math.max(10,Math.min(100,turn.scores.confidence??scores.confidence)),
+          engagement:Math.max(10,Math.min(100,turn.scores.engagement??scores.engagement)),
+        });
+      }
+      setDifficulty(turn.difficulty||difficulty);
+      setReasoning(turn.reasoning||"The agent analyzed the last response and selected the next question based on resume gaps.");
+      setQuestionCategory(turn.category||"Adaptive Follow-up");
+      setAgentSource(turn.source||"agent");
+      setCoachSignal(turn.coachSignal||"Adaptive follow-up selected");
+      const nq=answered+1>=5?"Great session. You have completed the adaptive interview. End the interview to generate your coaching report.":turn.nextQuestion;
+      setCurrentQ(nq);
+      setTranscript(t=>[...t,{role:"ai",text:nq}]);
+      setQIdx(i=>Math.min(4,i+1));
+    }catch(err){
+      const q=interviewQuestions[Math.min(qIdx,interviewQuestions.length-1)];
+      const{tD,cD,mD,nextDiff,nextQ,reasoning:r}=analyzeAnswer(submitted,q);
+      setScores(s=>({
+        technical:Math.max(10,Math.min(100,s.technical+tD)),
+        communication:Math.max(10,Math.min(100,s.communication+mD)),
+        confidence:Math.max(10,Math.min(100,s.confidence+cD)),
+        engagement:Math.max(10,Math.min(100,s.engagement+3)),
+      }));
+      setDifficulty(nextDiff);
+      setReasoning(`Local fallback: ${r}`);
+      setQuestionCategory("Fallback Follow-up");
+      setAgentSource("local-fallback");
+      setCoachSignal("Network fallback active");
+      const nq=nextQ||(qIdx<interviewQuestions.length-1?interviewQuestions[qIdx+1].question:"Great session. End the interview to generate your coaching report.");
+      setCurrentQ(nq);
+      setTranscript(t=>[...t,{role:"ai",text:nq}]);
+      if(!nextQ&&qIdx<interviewQuestions.length-1)setQIdx(i=>i+1);
+    }finally{
+      setThinking(false);
+    }
+  };
+
+  const ScoreW=({label,val,color,icon})=>(
+    <div style={{background:"var(--bg)",borderRadius:12,padding:"13px 14px",border:"1px solid var(--border)"}}>
+      <div style={{display:"flex",alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:16}}>{icon}</span>
+        <span style={{color,fontWeight:700,fontSize:19,marginLeft:"auto"}}>{val}</span>
+      </div>
+      <div style={{color:"var(--text-subtle)",fontSize:11,marginBottom:7,fontWeight:500}}>{label}</div>
+      <div style={{height:4,background:"var(--border)",borderRadius:2}}>
+        <div style={{height:4,width:`${val}%`,background:`linear-gradient(90deg,${color},${color}70)`,borderRadius:2,transition:"width 0.9s ease"}}/>
+      </div>
+    </div>
+  );
+
+  if(phase==="ready")return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="interview" onLogout={onLogout}/>
+      <div style={{maxWidth:680,margin:"0 auto",padding:"60px 24px",textAlign:"center"}}>
+        <div style={{width:88,height:88,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#6D28D9)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,margin:"0 auto 24px",boxShadow:"0 12px 40px rgba(124,58,237,0.4)"}}>🎯</div>
+        <h1 style={{fontSize:30,fontWeight:700,marginBottom:10,letterSpacing:"-0.5px"}}>Ready for your interview?</h1>
+        <p style={{color:"var(--text-subtle)",fontSize:15,marginBottom:36,lineHeight:1.7}}>The AI interviewer will ask adaptive questions calibrated to your resume and skill level. Your answers are analyzed in real-time for technical depth, communication, and confidence signals.</p>
+        <Card style={{textAlign:"left",marginBottom:32}}>
+          <div style={{fontWeight:600,marginBottom:16,fontSize:15}}>Interview Configuration</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {[["Target Role",targetRole],["Questions","5 adaptive turns"],["Duration","~20–30 minutes"],["Difficulty","Agent-controlled"],["Scoring","Technical + Comms + Confidence"],["Mode","Resume-aware adaptation"]].map(([k,v])=>(
+              <div key={k} style={{background:"var(--surface)",borderRadius:10,padding:"11px 14px",border:"1px solid var(--border)"}}>
+                <div style={{color:"var(--text-subtle)",fontSize:11,marginBottom:2}}>{k}</div>
+                <div style={{color:"var(--text-soft)",fontSize:13,fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Btn onClick={startInterview} style={{padding:"14px 44px",fontSize:16,boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
+          Begin Interview →
+        </Btn>
+      </div>
+    </div>
+  );
+
+  if(phase==="ended")return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="interview" onLogout={onLogout}/>
+      <div style={{maxWidth:600,margin:"0 auto",padding:"60px 24px",textAlign:"center"}}>
+        <div style={{fontSize:60,marginBottom:20}}>🎉</div>
+        <h1 style={{fontSize:30,fontWeight:700,marginBottom:10}}>Interview Complete!</h1>
+        <p style={{color:"var(--text-subtle)",marginBottom:36,fontSize:14}}>Duration: {fmt(elapsed)} · {answered} answers submitted · {transcript.filter(t=>t.role==="candidate").length} responses analyzed</p>
+        <div style={{display:"flex",justifyContent:"center",gap:24,marginBottom:40}}>
+          <CircleScore score={Math.round(scores.technical)} label="Technical" size={88}/>
+          <CircleScore score={Math.round(scores.communication)} label="Communication" size={88} color="#10B981"/>
+          <CircleScore score={Math.round(scores.confidence)} label="Confidence" size={88} color="#2563EB"/>
+          <CircleScore score={Math.round(scores.engagement)} label="Engagement" size={88} color="#F59E0B"/>
+        </div>
+        <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+          <Btn onClick={()=>navigate("report")} style={{padding:"13px 32px",fontSize:15}}>View Full Report →</Btn>
+          <Btn variant="secondary" onClick={()=>{setPhase("ready");setQIdx(0);setTranscript([]);setElapsed(0);setAnswered(0);setScores({technical:58,communication:63,confidence:60,engagement:68});}}>Retry Interview</Btn>
+        </div>
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{height:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Live header */}
+      <div style={{padding:"11px 24px",borderBottom:"1px solid var(--border)",background:"var(--surface)",display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#7C3AED,#6D28D9)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>⚡</div>
+          <span style={{fontWeight:700,fontSize:15}}>RoleReady <span style={{color:"#7C3AED"}}>AI</span></span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:7,background:"#EF444415",border:"1px solid #EF444430",borderRadius:8,padding:"4px 12px"}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:"#EF4444",animation:"pulse 1.5s infinite"}}/>
+          <span style={{color:"#EF4444",fontSize:13,fontWeight:600}}>LIVE · {fmt(elapsed)}</span>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <Tag color={diffColor(difficulty)}>{difficulty}</Tag>
+          <Tag color="#7C3AED">{questionCategory}</Tag>
+          <span style={{color:"var(--text-subtle)",fontSize:13}}>Q{Math.min(qIdx+1,5)} / 5</span>
+          <span style={{color:"var(--text-subtle)",fontSize:13}}>· {answered} answered</span>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",gap:10}}>
+          <Btn variant="ghost" onClick={()=>setPhase("ready")} style={{padding:"6px 14px",fontSize:12}}>← Exit</Btn>
+          <Btn variant="danger" onClick={()=>setPhase("ended")} style={{padding:"6px 14px",fontSize:12}}>End Interview</Btn>
+        </div>
+      </div>
+
+      {/* Main area */}
+      <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr 300px",overflow:"hidden"}}>
+        {/* Left: Video + Question + Answer */}
+        <div style={{borderRight:"1px solid var(--border)",padding:"18px",display:"flex",flexDirection:"column",gap:14,overflow:"auto"}}>
+          {/* Candidate panel */}
+          <div style={{borderRadius:14,aspectRatio:"16/9",background:"var(--surface)",border:"1px solid var(--border)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",flexShrink:0}}>
+            <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at center,rgba(124,58,237,0.08) 0%,transparent 70%)"}}/>
+            <div style={{width:64,height:64,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:24,marginBottom:10,boxShadow:"0 8px 24px rgba(124,58,237,0.3)"}}>{initials(candidate.name)}</div>
+            <div style={{color:"var(--text-soft)",fontSize:14,fontWeight:500}}>{candidate.name}</div>
+                <div style={{color:"var(--text-subtle)",fontSize:12}}>{targetRole} Candidate</div>
+            <div style={{position:"absolute",bottom:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:3,alignItems:"flex-end"}}>
+              {bars.map((h,i)=><div key={i} style={{width:3,height:h*2.8,background:"#7C3AED",borderRadius:2,transition:"height 0.3s ease",opacity:0.8}}/>)}
+            </div>
+            <div style={{position:"absolute",top:10,left:10,background:"rgba(239,68,68,0.2)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:6,padding:"2px 8px",fontSize:10,color:"#EF4444",fontWeight:600}}>📹 CAM</div>
+            <div style={{position:"absolute",top:10,right:10,background:"rgba(16,185,129,0.15)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:6,padding:"2px 8px",fontSize:10,color:"#10B981",fontWeight:600}}>🎙 MIC</div>
+          </div>
+
+          {/* AI question */}
+          <div style={{borderRadius:14,background:"var(--surface)",border:"1px solid rgba(124,58,237,0.3)",padding:"16px",flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🤖</div>
+              <div>
+                <div style={{color:"#A78BFA",fontWeight:600,fontSize:13}}>AI Interviewer</div>
+                <div style={{color:"var(--text-subtle)",fontSize:11}}>{thinking?"Analyzing response and adapting next turn...":coachSignal}</div>
+              </div>
+              {thinking&&<div style={{marginLeft:"auto",display:"flex",gap:4,alignItems:"center"}}>
+                {[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:"#7C3AED",animation:`bounce 0.8s ${i*0.2}s infinite ease`}}/>)}
+              </div>}
+            </div>
+            <p style={{color:"var(--text-soft)",fontSize:14,lineHeight:1.75,marginBottom:12}}>{currentQ}</p>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Tag color="#7C3AED">{questionCategory}</Tag>
+              <Tag color={agentSource.includes("openai")?"#10B981":"#F59E0B"}>{agentSource}</Tag>
+            </div>
+          </div>
+
+          {/* Answer input */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
+            <textarea value={answer} onChange={e=>setAnswer(e.target.value)}
+              placeholder="Type your answer here... Be detailed, mention specific technologies, tradeoffs, and real examples from your projects."
+              onKeyDown={e=>{if(e.ctrlKey&&e.key==="Enter")submit();}}
+              style={{flex:1,minHeight:130,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,padding:"14px",color:"var(--text)",fontSize:14,outline:"none",resize:"none",fontFamily:"DM Sans,sans-serif",lineHeight:1.7}}/>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{color:"var(--text-faint)",fontSize:11}}>Ctrl+Enter to submit</span>
+              <div style={{flex:1}}/>
+              <Btn variant="ghost" onClick={()=>setAnswer("")} style={{padding:"8px 14px",fontSize:13}}>Clear</Btn>
+              <Btn onClick={submit} disabled={thinking||!answer.trim()} style={{padding:"10px 22px",fontSize:14}}>
+                {thinking?"Analyzing...":"Submit Answer →"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+
+        {/* Center: Transcript */}
+        <div style={{borderRight:"1px solid var(--border)",padding:"18px",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{fontWeight:600,fontSize:13,marginBottom:14,color:"var(--text-muted)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <span>📝</span> Live Transcript
+            <span style={{marginLeft:"auto",color:"var(--text-faint)",fontSize:11,fontWeight:400}}>{transcript.length} messages</span>
+          </div>
+          <div ref={scrollRef} style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:12,paddingRight:4}}>
+            {transcript.map((t,i)=>(
+              <div key={i} className="slide-in" style={{display:"flex",gap:10,flexDirection:t.role==="candidate"?"row-reverse":"row"}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:t.role==="ai"?"linear-gradient(135deg,#7C3AED,#A78BFA)":"linear-gradient(135deg,#2D3748,var(--border))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>
+                  {t.role==="ai"?"🤖":"👤"}
+                </div>
+                <div style={{maxWidth:"80%",background:t.role==="ai"?"var(--card)":"rgba(124,58,237,0.12)",border:`1px solid ${t.role==="ai"?"var(--border)":"rgba(124,58,237,0.3)"}`,borderRadius:12,padding:"10px 14px"}}>
+                  <div style={{color:t.role==="ai"?"#A78BFA":"#C4B5FD",fontSize:10,marginBottom:5,fontWeight:600}}>
+                    {t.role==="ai"?"AI Interviewer":"You"}
+                  </div>
+                  <p style={{color:"var(--text-soft)",fontSize:13,lineHeight:1.65}}>{t.text}</p>
+                </div>
+              </div>
+            ))}
+            {thinking&&(
+              <div style={{display:"flex",gap:10}} className="fade-in">
+                <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#A78BFA)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤖</div>
+                <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 18px",display:"flex",gap:5,alignItems:"center"}}>
+                  {[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:"#7C3AED",animation:`bounce 0.8s ${i*0.2}s infinite`}}/>)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Scores + Reasoning */}
+        <div style={{padding:"18px",display:"flex",flexDirection:"column",gap:12,overflowY:"auto"}}>
+          <div style={{fontWeight:600,fontSize:13,color:"var(--text-muted)",flexShrink:0}}>📊 Live Scoring</div>
+          <ScoreW label="Technical Depth" val={Math.round(scores.technical)} color="#7C3AED" icon="🧠"/>
+          <ScoreW label="Communication" val={Math.round(scores.communication)} color="#10B981" icon="💬"/>
+          <ScoreW label="Confidence" val={Math.round(scores.confidence)} color="#2563EB" icon="⚡"/>
+          <ScoreW label="Engagement" val={Math.round(scores.engagement)} color="#F59E0B" icon="🎯"/>
+
+          <div style={{background:"var(--bg)",borderRadius:12,padding:"14px",border:"1px solid rgba(124,58,237,0.2)",marginTop:4}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+              <span style={{fontSize:14}}>🧩</span>
+              <span style={{color:"#A78BFA",fontSize:12,fontWeight:600}}>Agent Reasoning</span>
+            </div>
+            <p style={{color:"var(--text-muted)",fontSize:12,lineHeight:1.75}}>{reasoning}</p>
+          </div>
+
+          <div style={{background:"var(--bg)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{color:"var(--text-subtle)",fontSize:13}}>Difficulty</span>
+            <span style={{color:diffColor(difficulty),fontWeight:700,fontSize:14}}>{difficulty}</span>
+          </div>
+
+          <div style={{background:"var(--bg)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{color:"var(--text-subtle)",fontSize:13}}>Question</span>
+            <span style={{color:"var(--text)",fontWeight:700,fontSize:14}}>{Math.min(qIdx+1,5)} / 5</span>
+          </div>
+
+          <div style={{flex:1}}/>
+          <Btn variant="danger" onClick={()=>setPhase("ended")} style={{width:"100%",marginTop:8}}>End & Get Report →</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── REPORT SCREEN ────────────────────────────────────────────────────────────
+
+function ReportScreen({navigate,onLogout}){
+  const [tab,setTab]=useState("overview");
+  const tabs=[{id:"overview",label:"Overview"},{id:"questions",label:"Q&A Feedback"},{id:"plan",label:"7-Day Plan"},{id:"jobs",label:"Job Recap"}];
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="report" onLogout={onLogout}/>
+      <div style={{maxWidth:1000,margin:"0 auto",padding:"28px 24px"}}>
+        {/* Report header */}
+        <div style={{background:"linear-gradient(135deg,var(--card),#130830)",border:"1px solid rgba(124,58,237,0.4)",borderRadius:20,padding:"26px 30px",marginBottom:22,position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:-50,right:-50,width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,58,237,0.25) 0%,transparent 70%)"}}/>
+          <div style={{position:"absolute",bottom:-30,left:80,width:120,height:120,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,40,217,0.15) 0%,transparent 70%)"}}/>
+          <div style={{display:"flex",alignItems:"center",gap:22,position:"relative",zIndex:1,flexWrap:"wrap"}}>
+            <div>
+              <CircleScore score={feedbackReport.overallScore} size={96} stroke={8}/>
+            </div>
+            <div style={{flex:1,minWidth:160}}>
+              <div style={{color:"#A78BFA",fontSize:11,fontWeight:700,marginBottom:4,letterSpacing:"1.2px"}}>COACHING REPORT</div>
+              <h1 style={{fontSize:22,fontWeight:700,marginBottom:4,letterSpacing:"-0.5px"}}>Final Interview Report</h1>
+              <p style={{color:"var(--text-subtle)",fontSize:13}}>Backend Developer · December 18, 2024 · 28 min session</p>
+              <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Tag color="#10B981">74% Overall Score</Tag>
+                <Tag color="#7C3AED">71% Role Readiness</Tag>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+              <CircleScore score={feedbackReport.technicalScore} size={70} label="Technical" color="#7C3AED"/>
+              <CircleScore score={feedbackReport.communicationScore} size={70} label="Comms" color="#10B981"/>
+              <CircleScore score={feedbackReport.confidenceScore} size={70} label="Confidence" color="#2563EB"/>
+              <CircleScore score={feedbackReport.engagementScore} size={70} label="Engagement" color="#F59E0B"/>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:3,background:"var(--surface)",borderRadius:13,padding:4,marginBottom:20,border:"1px solid var(--border)",width:"fit-content"}}>
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:"8px 20px",borderRadius:10,border:"none",background:tab===t.id?"linear-gradient(135deg,#7C3AED,#6D28D9)":"transparent",color:tab===t.id?"white":"var(--text-subtle)",cursor:"pointer",fontSize:13,fontWeight:tab===t.id?600:400,transition:"all 0.2s",fontFamily:"DM Sans,sans-serif",boxShadow:tab===t.id?"0 2px 8px rgba(124,58,237,0.3)":"none"}}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab==="overview"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:16}} className="fade-in">
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+              <Card>
+                <div style={{fontWeight:600,fontSize:15,marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span>💪</span> Strengths</div>
+                <div style={{display:"flex",flexDirection:"column",gap:11}}>
+                  {feedbackReport.strengths.map((s,i)=>(
+                    <div key={i} style={{display:"flex",gap:10}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,0.15)",border:"1px solid rgba(16,185,129,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#10B981",flexShrink:0,marginTop:2}}>✓</div>
+                      <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card>
+                <div style={{fontWeight:600,fontSize:15,marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span>🎯</span> Areas to Improve</div>
+                <div style={{display:"flex",flexDirection:"column",gap:11}}>
+                  {feedbackReport.weaknesses.map((w,i)=>(
+                    <div key={i} style={{display:"flex",gap:10}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#EF4444",flexShrink:0,marginTop:2}}>!</div>
+                      <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+            <Card>
+              <div style={{fontWeight:600,fontSize:15,marginBottom:10,display:"flex",alignItems:"center",gap:8}}><span>📋</span> Coaching Summary</div>
+              <p style={{color:"var(--text-muted)",fontSize:14,lineHeight:1.85}}>
+                {candidate.name} demonstrates a <span style={{color:"#A78BFA",fontWeight:500}}>solid technical foundation</span> for {resumeAnalysis.bestFitRoles[0]?.role||"the target role"} with practical project evidence. The agent prioritized <span style={{color:"#F59E0B",fontWeight:500}}>{resumeAnalysis.weakMissingAreas[0]?.area||"the weakest resume signal"}</span> because it appeared as the clearest gap during resume analysis and interview adaptation. Communication is scored from answer length, structure, and clarity signals. <span style={{color:"#10B981",fontWeight:500}}>Priority action: follow the 7-day plan and retry the adaptive interview after improving the top gap.</span>
+              </p>
+            </Card>
+          </div>
+        )}
+
+        {tab==="questions"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}} className="fade-in">
+            {feedbackReport.questionFeedback.map((q,i)=>(
+              <Card key={i}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:`${scoreColor(q.score)}18`,border:`1px solid ${scoreColor(q.score)}35`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:scoreColor(q.score),fontSize:15,flexShrink:0}}>{q.score}</div>
+                  <div>
+                    <div style={{color:"var(--text-soft)",fontWeight:600,fontSize:14}}>Q{i+1}: {q.question}</div>
+                    <div style={{color:scoreColor(q.score),fontSize:11,marginTop:2,fontWeight:500}}>{scoreLabel(q.score)}</div>
+                  </div>
+                </div>
+                <div style={{height:5,background:"var(--border)",borderRadius:3,marginBottom:14}}>
+                  <div style={{height:5,width:`${q.score}%`,background:`linear-gradient(90deg,${scoreColor(q.score)},${scoreColor(q.score)}80)`,borderRadius:3,transition:"width 1s ease"}}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <div style={{background:"var(--surface)",borderRadius:10,padding:"12px 14px",border:"1px solid var(--border)"}}>
+                    <div style={{color:"var(--text-muted)",fontSize:11,marginBottom:5,fontWeight:600}}>FEEDBACK</div>
+                    <p style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{q.feedback}</p>
+                  </div>
+                  <div style={{background:"var(--surface)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(124,58,237,0.2)"}}>
+                    <div style={{color:"#7C3AED",fontSize:11,marginBottom:5,fontWeight:600}}>ACTION ITEM</div>
+                    <p style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{q.improvement}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {tab==="plan"&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="fade-in">
+            {feedbackReport.prepPlan.map((day)=>(
+              <Card key={day.day}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:"#A78BFA",fontSize:13}}>D{day.day}</div>
+                  <span style={{color:"var(--text-soft)",fontWeight:600,fontSize:14}}>{day.focus}</span>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {day.tasks.map((t,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                      <div style={{width:5,height:5,borderRadius:"50%",background:"#7C3AED",flexShrink:0,marginTop:7}}/>
+                      <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.5}}>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {tab==="jobs"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}} className="fade-in">
+            <Card style={{marginBottom:4}}>
+              <p style={{color:"var(--text-muted)",fontSize:14,lineHeight:1.75}}>
+                Based on your interview performance and resume profile, here are your matched roles ranked by current readiness. Focus on <span style={{color:"#A78BFA"}}>TechNova first</span> — it aligns most with your demonstrated skills.
+              </p>
+            </Card>
+            {jobRecommendations.map(job=>(
+              <Card key={job.id} style={{display:"flex",alignItems:"center",gap:16}} className="card-hover">
+                <div style={{width:46,height:46,borderRadius:13,background:`${job.logoColor}18`,border:`1px solid ${job.logoColor}35`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:job.logoColor,fontSize:15,flexShrink:0}}>{job.logo}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:"var(--text-soft)",fontWeight:600,fontSize:14}}>{job.title}</div>
+                  <div style={{color:"var(--text-subtle)",fontSize:13,marginTop:1}}>{job.company} · {job.location} · {job.type}</div>
+                  <div style={{color:"var(--text-muted)",fontSize:12,marginTop:3}}>{job.salary}</div>
+                </div>
+                <div style={{textAlign:"center",flexShrink:0}}>
+                  <CircleScore score={job.matchScore} size={52} stroke={5} color={scoreColor(job.matchScore)}/>
+                </div>
+                <div style={{color:priColor(job.priority),fontSize:11,fontWeight:700,padding:"5px 13px",borderRadius:20,background:`${priColor(job.priority)}18`,border:`1px solid ${priColor(job.priority)}35`,flexShrink:0}}>
+                  {job.priority} Priority
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div style={{marginTop:24,display:"flex",gap:12}}>
+          <Btn onClick={()=>navigate("interview")}>🎯 Retry Interview</Btn>
+          <Btn variant="secondary" onClick={()=>navigate("dashboard")}>← Dashboard</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+
+function App(){
+  const [screen,setScreen]=useState("auth");
+  const [isLight,setIsLight]=useState(false);
+  const [user,setUser]=useState(appUser);
+  useEffect(()=>{
+    document.body.classList.toggle("light",isLight);
+    document.body.classList.add("theme-transition");
+  },[isLight]);
+  useEffect(()=>{
+    const token=localStorage.getItem("roleready_token");
+    if(!token)return;
+    fetch("http://localhost:3001/api/auth/me",{headers:{Authorization:`Bearer ${token}`}})
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        if(data?.user){
+          appUser=data.user;
+          setUser(data.user);
+          setScreen("dashboard");
+        }
+      })
+      .catch(()=>{});
+  },[]);
+  const navigate=s=>setScreen(s);
+  const handleAuth=u=>{
+    appUser=u;
+    setUser(u);
+    navigate("dashboard");
+  };
+  const handleLogout=async()=>{
+    const token=localStorage.getItem("roleready_token");
+    localStorage.removeItem("roleready_token");
+    if(token){
+      fetch("http://localhost:3001/api/auth/logout",{method:"POST",headers:{Authorization:`Bearer ${token}`}}).catch(()=>{});
+    }
+    appUser={name:"User",email:"user@roleready.local",provider:"email"};
+    setUser(appUser);
+    navigate("auth");
+  };
+  const screens={
+    auth:<AuthScreen onAuth={handleAuth}/>,
+    dashboard:<DashboardScreen navigate={navigate} onLogout={handleLogout} user={user}/>,
+    analysis:<AnalysisScreen navigate={navigate} onLogout={handleLogout} user={user}/>,
+    jobs:<JobsScreen navigate={navigate} onLogout={handleLogout} user={user}/>,
+    interview:<InterviewScreen navigate={navigate} onLogout={handleLogout} user={user}/>,
+    report:<ReportScreen navigate={navigate} onLogout={handleLogout} user={user}/>,
+  };
+  return(
+    <ThemeContext.Provider value={{isLight,toggleTheme:()=>setIsLight(v=>!v)}}>
+      {screens[screen]||screens.auth}
+    </ThemeContext.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
