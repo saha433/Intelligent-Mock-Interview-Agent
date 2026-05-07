@@ -92,6 +92,12 @@ let appUser = {
   provider:"email",
 };
 
+let resumeState = {
+  uploaded:false,
+  fileName:"",
+  parseInfo:null,
+};
+
 let resumeAnalysis = { 
   extractedSkills:[
     {name:"Python",level:85,category:"Language"},{name:"React",level:75,category:"Frontend"},
@@ -154,6 +160,9 @@ const feedbackReport = {
   ],
 };
 
+let generatedReport = null;
+let lastInterviewSession = null;
+
 const recentInterviews = [
   {id:1,role:"Backend Developer",date:"Dec 18, 2024",score:74,status:"Completed"},
   {id:2,role:"Full Stack Engineer",date:"Dec 15, 2024",score:68,status:"Completed"},
@@ -168,6 +177,20 @@ const diffColor = d => d==="Easy"?"#10B981":d==="Medium"?"#F59E0B":"#EF4444";
 const priColor = p => p==="High"?"#10B981":p==="Medium"?"#F59E0B":"#94A3B8";
 const catColor = c => ({Language:"#7C3AED",Frontend:"#2563EB",Backend:"#059669",Database:"#D97706",DevOps:"#DC2626"}[c]||"#7C3AED");
 const initials = name => String(name||"Candidate").split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()).join("")||"C";
+
+function resetResumeState(){
+  resumeState={uploaded:false,fileName:"",parseInfo:null};
+  candidate={
+    name:"Resume Candidate",email:"",
+    targetRoles:["Upload a resume to infer roles"],
+    skills:["Upload resume","Parse skills","Infer roles"],
+    weakAreas:["Upload resume to detect gaps"],
+    projects:[{name:"Upload a resume to extract projects",tech:["PDF","TXT"],impact:"Awaiting resume"}],
+    experienceLevel:"Not analyzed",totalExperience:"Upload resume",
+  };
+  generatedReport=null;
+  lastInterviewSession=null;
+}
 
 function analyzeAnswer(text, question) {
   const lower = text.toLowerCase();
@@ -236,6 +259,30 @@ function Card({children,style={},className="",onClick}){
     <div onClick={onClick} className={`fade-in ${className}`}
       style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:16,padding:"18px 20px",...style}}>
       {children}
+    </div>
+  );
+}
+
+function LockedCard({title="Add your resume to unlock",body="Upload a PDF or TXT resume so the agent can personalize this section.",action,navigate}){
+  return(
+    <Card style={{minHeight:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",gap:12}}>
+      <div style={{width:46,height:46,borderRadius:14,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.28)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>🔒</div>
+      <div>
+        <div style={{color:"var(--text)",fontSize:15,fontWeight:700,marginBottom:5}}>{title}</div>
+        <p style={{color:"var(--text-subtle)",fontSize:13,lineHeight:1.55,maxWidth:300}}>{body}</p>
+      </div>
+      {action&&<Btn variant="secondary" onClick={()=>navigate("dashboard")} style={{padding:"8px 14px",fontSize:13}}>{action}</Btn>}
+    </Card>
+  );
+}
+
+function LockedScreen({navigate,onLogout,title,body}){
+  return(
+    <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"DM Sans,sans-serif"}}>
+      <NavBar navigate={navigate} active="dashboard" onLogout={onLogout}/>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"80px 24px"}}>
+        <LockedCard title={title} body={body} action="Go to Resume Upload" navigate={navigate}/>
+      </div>
     </div>
   );
 }
@@ -450,12 +497,12 @@ function AuthScreen({onAuth}){
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
 function DashboardScreen({navigate,onLogout}){
-  const [uploaded,setUploaded]=useState(false);
+  const [uploaded,setUploaded]=useState(resumeState.uploaded);
   const [uploading,setUploading]=useState(false);
   const [uploadError,setUploadError]=useState("");
-  const [parseInfo,setParseInfo]=useState(null);
+  const [parseInfo,setParseInfo]=useState(resumeState.parseInfo);
   const [dragging,setDragging]=useState(false);
-  const [fname,setFname]=useState("");
+  const [fname,setFname]=useState(resumeState.fileName);
 
   const doUpload=async(file)=>{
     if(!file)return;
@@ -470,11 +517,15 @@ function DashboardScreen({navigate,onLogout}){
       if(!res.ok||!data.ok)throw new Error(data.error||"Resume analysis failed");
       resumeAnalysis=data.analysis;
       if(data.candidate)candidate=data.candidate;
-      setParseInfo({
+      const nextParseInfo={
         source:data.source,
         textPreview:data.textPreview,
         warning:data.warning,
-      });
+      };
+      resumeState={uploaded:true,fileName:file.name||"Resume.pdf",parseInfo:nextParseInfo};
+      generatedReport=null;
+      lastInterviewSession=null;
+      setParseInfo(nextParseInfo);
       setUploaded(true);
     }catch(err){
       setUploadError(err.message||"Could not analyze resume. Start the backend and try again.");
@@ -492,9 +543,11 @@ function DashboardScreen({navigate,onLogout}){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:26}}>
           <div>
             <h1 style={{fontSize:24,fontWeight:700,marginBottom:4,letterSpacing:"-0.5px"}}>Good morning, {appUser.name.split(" ")[0]||"there"} 👋</h1>
-            <p style={{color:"var(--text-subtle)",fontSize:14}}>AI inferred <span style={{color:"#10B981",fontWeight:600}}>{resumeAnalysis.bestFitRoles[0]?.role||"your top role"}</span> as your strongest path. The flow adapts from your resume evidence.</p>
+            <p style={{color:"var(--text-subtle)",fontSize:14}}>
+              {resumeState.uploaded?<>AI inferred <span style={{color:"#10B981",fontWeight:600}}>{resumeAnalysis.bestFitRoles[0]?.role||"your top role"}</span> as your strongest path. The flow adapts from your resume evidence.</>:<>Add your resume to unlock role analysis, job matches, adaptive interviews, and coaching reports.</>}
+            </p>
           </div>
-          <Btn onClick={()=>navigate("interview")} style={{padding:"11px 24px",fontSize:15}}>Start Interview →</Btn>
+          <Btn onClick={()=>navigate("interview")} disabled={!resumeState.uploaded} style={{padding:"11px 24px",fontSize:15}}>Start Interview →</Btn>
         </div>
 
         {/* Top row */}
@@ -519,7 +572,7 @@ function DashboardScreen({navigate,onLogout}){
                   <div style={{color:"#475569",fontSize:11,marginTop:4}}>PDF or TXT · max 5MB</div>
                 </div>
                 {uploadError&&<div style={{color:"#EF4444",fontSize:12,lineHeight:1.5,marginBottom:10}}>{uploadError}</div>}
-                <Btn onClick={()=>{setFname("Aarav_Mehta_Resume.pdf");candidate={name:"Aarav Mehta",email:"aarav.mehta@gmail.com",targetRoles:["Backend Developer","Full Stack Developer","Data Engineer"],skills:["Python","React","SQL","REST APIs","PostgreSQL","Docker","JavaScript","Node.js","Git"],weakAreas:["System Design","Cloud Deployment","Distributed Systems"],projects:[{name:"E-commerce API",tech:["Python","FastAPI","PostgreSQL","Docker"],impact:"10k+ req/day"},{name:"Analytics Dashboard",tech:["React","D3.js","REST APIs","SQL"],impact:"60% faster reports"},{name:"Resume Parser",tech:["Python","NLP","spaCy"],impact:"85% accuracy"}],experienceLevel:"Junior",totalExperience:"1.5 years"};setParseInfo({source:"sample",textPreview:"Sample resume loaded for demo: Python, React, SQL, REST APIs, PostgreSQL, Docker, e-commerce API, analytics dashboard.",warning:null});setUploaded(true);}} style={{width:"100%"}}>Use Sample Resume</Btn>
+                <Btn onClick={()=>{setFname("Sample_Resume.pdf");candidate={name:"Aarav Mehta",email:"aarav.mehta@gmail.com",targetRoles:["Backend Developer","Full Stack Developer","Data Engineer"],skills:["Python","React","SQL","REST APIs","PostgreSQL","Docker","JavaScript","Node.js","Git"],weakAreas:["System Design","Cloud Deployment","Distributed Systems"],projects:[{name:"E-commerce API",tech:["Python","FastAPI","PostgreSQL","Docker"],impact:"10k+ req/day"},{name:"Analytics Dashboard",tech:["React","D3.js","REST APIs","SQL"],impact:"60% faster reports"},{name:"Resume Parser",tech:["Python","NLP","spaCy"],impact:"85% accuracy"}],experienceLevel:"Junior",totalExperience:"1.5 years"};const sampleInfo={source:"sample",textPreview:"Sample resume loaded for demo: Python, React, SQL, REST APIs, PostgreSQL, Docker, e-commerce API, analytics dashboard.",warning:null};resumeState={uploaded:true,fileName:"Sample_Resume.pdf",parseInfo:sampleInfo};generatedReport=null;lastInterviewSession=null;setParseInfo(sampleInfo);setUploaded(true);}} style={{width:"100%"}}>Use Sample Resume</Btn>
               </>
             ):(
               <>
@@ -553,13 +606,15 @@ function DashboardScreen({navigate,onLogout}){
                 )}
                 <div style={{display:"flex",gap:8}}>
                   <Btn onClick={()=>navigate("analysis")} style={{flex:1}}>View Analysis</Btn>
-                  <Btn variant="ghost" onClick={()=>{setUploaded(false);setParseInfo(null);}}>↺</Btn>
+                  <Btn variant="secondary" onClick={()=>{setUploaded(false);setParseInfo(null);}}>Replace</Btn>
+                  <Btn variant="ghost" onClick={()=>{resetResumeState();setUploaded(false);setParseInfo(null);setFname("");}}>Remove</Btn>
                 </div>
               </>
             )}
           </Card>
 
           {/* Readiness */}
+          {resumeState.uploaded?(
           <Card>
             <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>Interview Readiness</div>
             <div style={{display:"flex",justifyContent:"space-around",marginBottom:18}}>
@@ -569,8 +624,10 @@ function DashboardScreen({navigate,onLogout}){
             </div>
             <Btn onClick={()=>navigate("interview")} style={{width:"100%"}}>🎯 Start New Interview</Btn>
           </Card>
+          ):<LockedCard title="Interview readiness locked" body="Upload a resume first so the agent can calculate readiness for your target role."/>}
 
           {/* Best-fit roles */}
+          {resumeState.uploaded?(
           <Card>
             <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>Best-Fit Roles</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -588,30 +645,32 @@ function DashboardScreen({navigate,onLogout}){
             </div>
             <Btn variant="secondary" onClick={()=>navigate("jobs")} style={{width:"100%",marginTop:16}}>View Job Matches →</Btn>
           </Card>
+          ):<LockedCard title="Best-fit roles locked" body="Upload your resume to infer realistic roles from skills, projects, and experience signals."/>}
         </div>
 
         {/* Bottom row */}
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:16}}>
+          {resumeState.uploaded&&generatedReport?(
           <Card>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <span style={{fontWeight:600,fontSize:15}}>Recent Interviews</span>
+              <span style={{fontWeight:600,fontSize:15}}>Latest Interview Report</span>
               <Btn variant="secondary" onClick={()=>navigate("interview")} style={{padding:"6px 14px",fontSize:12}}>+ New Interview</Btn>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {recentInterviews.map(r=>(
-                <div key={r.id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",background:"var(--surface)",borderRadius:12,border:"1px solid var(--border)",cursor:"pointer"}} className="card-hover" onClick={()=>navigate("report")}>
+                <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",background:"var(--surface)",borderRadius:12,border:"1px solid var(--border)",cursor:"pointer"}} className="card-hover" onClick={()=>navigate("report")}>
                   <div style={{width:40,height:40,borderRadius:11,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🎯</div>
                   <div style={{flex:1}}>
-                    <div style={{color:"var(--text-soft)",fontSize:14,fontWeight:500}}>{r.role}</div>
-                    <div style={{color:"var(--text-subtle)",fontSize:12,marginTop:1}}>{r.date}</div>
+                    <div style={{color:"var(--text-soft)",fontSize:14,fontWeight:500}}>{lastInterviewSession?.targetRole||resumeAnalysis.bestFitRoles[0]?.role||"Adaptive Interview"}</div>
+                    <div style={{color:"var(--text-subtle)",fontSize:12,marginTop:1}}>Generated from transcript + scores</div>
                   </div>
-                  <CircleScore score={r.score} size={44} stroke={4}/>
-                  <span style={{color:"#10B981",fontSize:11,background:"#10B98118",padding:"3px 10px",borderRadius:20,border:"1px solid #10B98130"}}>{r.status}</span>
+                  <CircleScore score={generatedReport.overallScore} size={44} stroke={4}/>
+                  <span style={{color:"#10B981",fontSize:11,background:"#10B98118",padding:"3px 10px",borderRadius:20,border:"1px solid #10B98130"}}>Completed</span>
                 </div>
-              ))}
             </div>
           </Card>
+          ):<LockedCard title="Interview history locked" body={resumeState.uploaded?"Complete an interview to see your generated reports here.":"Upload a resume, then complete an adaptive interview to unlock reports."}/>}
 
+          {resumeState.uploaded?(
           <Card>
             <div style={{fontWeight:600,fontSize:15,marginBottom:16}}>🚨 Gaps to Fix</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -627,6 +686,7 @@ function DashboardScreen({navigate,onLogout}){
             </div>
             <Btn onClick={()=>navigate("report")} style={{width:"100%",marginTop:16}}>View Full Prep Plan</Btn>
           </Card>
+          ):<LockedCard title="Skill gaps locked" body="Upload your resume to detect missing skills and weak interview areas."/>}
         </div>
       </div>
     </div>
@@ -636,6 +696,9 @@ function DashboardScreen({navigate,onLogout}){
 // ─── ANALYSIS SCREEN ──────────────────────────────────────────────────────────
 
 function AnalysisScreen({navigate,onLogout}){
+  if(!resumeState.uploaded){
+    return <LockedScreen navigate={navigate} onLogout={onLogout} title="Resume analysis is locked" body="Upload your resume first. The agent will parse it and unlock skills, roles, gaps, and interview focus areas."/>;
+  }
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)",color:"white",fontFamily:"DM Sans,sans-serif"}}>
       <NavBar navigate={navigate} active="analysis" onLogout={onLogout}/>
@@ -746,6 +809,9 @@ function AnalysisScreen({navigate,onLogout}){
 // ─── JOBS SCREEN ──────────────────────────────────────────────────────────────
 
 function JobsScreen({navigate,onLogout}){
+  if(!resumeState.uploaded){
+    return <LockedScreen navigate={navigate} onLogout={onLogout} title="Job matches are locked" body="Upload your resume first so the agent can rank jobs against your real skills and target role."/>;
+  }
   const [expanded,setExpanded]=useState(null);
   const [filter,setFilter]=useState("All");
   const filters=["All","High Match","Internship","Remote"];
@@ -851,7 +917,21 @@ async function requestInterviewTurn(payload){
   return data.turn;
 }
 
+async function requestGeneratedReport(payload){
+  const res=await fetch("http://localhost:3001/api/generate-report",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload),
+  });
+  const data=await res.json();
+  if(!res.ok||!data.ok)throw new Error(data.error||"Report agent failed");
+  return data.report;
+}
+
 function InterviewScreen({navigate,onLogout}){
+  if(!resumeState.uploaded){
+    return <LockedScreen navigate={navigate} onLogout={onLogout} title="Adaptive interview is locked" body="Upload your resume first so the interviewer can ask role-specific questions instead of generic prompts."/>;
+  }
   const [phase,setPhase]=useState("ready");
   const [qIdx,setQIdx]=useState(0);
   const [answer,setAnswer]=useState("");
@@ -864,6 +944,7 @@ function InterviewScreen({navigate,onLogout}){
   const [agentSource,setAgentSource]=useState("local");
   const [coachSignal,setCoachSignal]=useState("Resume-aware calibration");
   const [thinking,setThinking]=useState(false);
+  const [reporting,setReporting]=useState(false);
   const [elapsed,setElapsed]=useState(0);
   const [bars,setBars]=useState(Array(14).fill(0).map(()=>Math.random()*10+2));
   const [answered,setAnswered]=useState(0);
@@ -885,6 +966,34 @@ function InterviewScreen({navigate,onLogout}){
 
   const fmt=s=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   const targetRole=resumeAnalysis.bestFitRoles?.[0]?.role||"Backend Developer";
+
+  const finishInterview=async()=>{
+    const session={
+      candidate,
+      resumeAnalysis,
+      transcript,
+      scores,
+      targetRole,
+      durationSeconds:elapsed,
+      answered,
+      lastReasoning:reasoning,
+    };
+    lastInterviewSession=session;
+    setReporting(true);
+    try{
+      generatedReport=await requestGeneratedReport(session);
+    }catch(err){
+      generatedReport={
+        ...feedbackReport,
+        source:"local-report-fallback",
+        warning:err.message,
+        coachingSummary:`${candidate.name} completed an adaptive interview for ${targetRole}. Report generation fell back locally, but the transcript and scores were still captured for review.`,
+      };
+    }finally{
+      setReporting(false);
+      setPhase("ended");
+    }
+  };
 
   const startInterview=async()=>{
     setPhase("active");
@@ -1058,7 +1167,7 @@ function InterviewScreen({navigate,onLogout}){
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:10}}>
           <Btn variant="ghost" onClick={()=>setPhase("ready")} style={{padding:"6px 14px",fontSize:12}}>← Exit</Btn>
-          <Btn variant="danger" onClick={()=>setPhase("ended")} style={{padding:"6px 14px",fontSize:12}}>End Interview</Btn>
+          <Btn variant="danger" onClick={finishInterview} disabled={reporting} style={{padding:"6px 14px",fontSize:12}}>{reporting?"Generating Report...":"End Interview"}</Btn>
         </div>
       </div>
 
@@ -1173,7 +1282,7 @@ function InterviewScreen({navigate,onLogout}){
           </div>
 
           <div style={{flex:1}}/>
-          <Btn variant="danger" onClick={()=>setPhase("ended")} style={{width:"100%",marginTop:8}}>End & Get Report →</Btn>
+          <Btn variant="danger" onClick={finishInterview} disabled={reporting} style={{width:"100%",marginTop:8}}>{reporting?"Generating Agentic Report...":"End & Get Report →"}</Btn>
         </div>
       </div>
     </div>
@@ -1183,7 +1292,14 @@ function InterviewScreen({navigate,onLogout}){
 // ─── REPORT SCREEN ────────────────────────────────────────────────────────────
 
 function ReportScreen({navigate,onLogout}){
+  if(!resumeState.uploaded){
+    return <LockedScreen navigate={navigate} onLogout={onLogout} title="Report is locked" body="Upload your resume and complete an adaptive interview to generate a coaching report."/>;
+  }
+  if(!generatedReport){
+    return <LockedScreen navigate={navigate} onLogout={onLogout} title="No coaching report yet" body="Complete an adaptive interview first. The report agent will generate feedback from your transcript, scores, and resume analysis."/>;
+  }
   const [tab,setTab]=useState("overview");
+  const report=generatedReport||feedbackReport;
   const tabs=[{id:"overview",label:"Overview"},{id:"questions",label:"Q&A Feedback"},{id:"plan",label:"7-Day Plan"},{id:"jobs",label:"Job Recap"}];
 
   return(
@@ -1196,22 +1312,23 @@ function ReportScreen({navigate,onLogout}){
           <div style={{position:"absolute",bottom:-30,left:80,width:120,height:120,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,40,217,0.15) 0%,transparent 70%)"}}/>
           <div style={{display:"flex",alignItems:"center",gap:22,position:"relative",zIndex:1,flexWrap:"wrap"}}>
             <div>
-              <CircleScore score={feedbackReport.overallScore} size={96} stroke={8}/>
+              <CircleScore score={report.overallScore} size={96} stroke={8}/>
             </div>
             <div style={{flex:1,minWidth:160}}>
-              <div style={{color:"#A78BFA",fontSize:11,fontWeight:700,marginBottom:4,letterSpacing:"1.2px"}}>COACHING REPORT</div>
+              <div style={{color:"#A78BFA",fontSize:11,fontWeight:700,marginBottom:4,letterSpacing:"1.2px"}}>AGENTIC COACHING REPORT</div>
               <h1 style={{fontSize:22,fontWeight:700,marginBottom:4,letterSpacing:"-0.5px"}}>Final Interview Report</h1>
-              <p style={{color:"var(--text-subtle)",fontSize:13}}>Backend Developer · December 18, 2024 · 28 min session</p>
+              <p style={{color:"var(--text-subtle)",fontSize:13}}>{lastInterviewSession?.targetRole||resumeAnalysis.bestFitRoles[0]?.role||"Target Role"} · Generated from resume + transcript + scores</p>
               <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Tag color="#10B981">74% Overall Score</Tag>
-                <Tag color="#7C3AED">71% Role Readiness</Tag>
+                <Tag color="#10B981">{report.overallScore}% Overall Score</Tag>
+                <Tag color="#7C3AED">{report.roleReadiness}% Role Readiness</Tag>
+                {report.source&&<Tag color={report.source.includes("openai")?"#10B981":"#F59E0B"}>{report.source}</Tag>}
               </div>
             </div>
             <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-              <CircleScore score={feedbackReport.technicalScore} size={70} label="Technical" color="#7C3AED"/>
-              <CircleScore score={feedbackReport.communicationScore} size={70} label="Comms" color="#10B981"/>
-              <CircleScore score={feedbackReport.confidenceScore} size={70} label="Confidence" color="#2563EB"/>
-              <CircleScore score={feedbackReport.engagementScore} size={70} label="Engagement" color="#F59E0B"/>
+              <CircleScore score={report.technicalScore} size={70} label="Technical" color="#7C3AED"/>
+              <CircleScore score={report.communicationScore} size={70} label="Comms" color="#10B981"/>
+              <CircleScore score={report.confidenceScore} size={70} label="Confidence" color="#2563EB"/>
+              <CircleScore score={report.engagementScore} size={70} label="Engagement" color="#F59E0B"/>
             </div>
           </div>
         </div>
@@ -1232,7 +1349,7 @@ function ReportScreen({navigate,onLogout}){
               <Card>
                 <div style={{fontWeight:600,fontSize:15,marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span>💪</span> Strengths</div>
                 <div style={{display:"flex",flexDirection:"column",gap:11}}>
-                  {feedbackReport.strengths.map((s,i)=>(
+                  {report.strengths.map((s,i)=>(
                     <div key={i} style={{display:"flex",gap:10}}>
                       <div style={{width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,0.15)",border:"1px solid rgba(16,185,129,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#10B981",flexShrink:0,marginTop:2}}>✓</div>
                       <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{s}</span>
@@ -1243,7 +1360,7 @@ function ReportScreen({navigate,onLogout}){
               <Card>
                 <div style={{fontWeight:600,fontSize:15,marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span>🎯</span> Areas to Improve</div>
                 <div style={{display:"flex",flexDirection:"column",gap:11}}>
-                  {feedbackReport.weaknesses.map((w,i)=>(
+                  {report.weaknesses.map((w,i)=>(
                     <div key={i} style={{display:"flex",gap:10}}>
                       <div style={{width:22,height:22,borderRadius:"50%",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#EF4444",flexShrink:0,marginTop:2}}>!</div>
                       <span style={{color:"var(--text-muted)",fontSize:13,lineHeight:1.65}}>{w}</span>
@@ -1254,16 +1371,15 @@ function ReportScreen({navigate,onLogout}){
             </div>
             <Card>
               <div style={{fontWeight:600,fontSize:15,marginBottom:10,display:"flex",alignItems:"center",gap:8}}><span>📋</span> Coaching Summary</div>
-              <p style={{color:"var(--text-muted)",fontSize:14,lineHeight:1.85}}>
-                {candidate.name} demonstrates a <span style={{color:"#A78BFA",fontWeight:500}}>solid technical foundation</span> for {resumeAnalysis.bestFitRoles[0]?.role||"the target role"} with practical project evidence. The agent prioritized <span style={{color:"#F59E0B",fontWeight:500}}>{resumeAnalysis.weakMissingAreas[0]?.area||"the weakest resume signal"}</span> because it appeared as the clearest gap during resume analysis and interview adaptation. Communication is scored from answer length, structure, and clarity signals. <span style={{color:"#10B981",fontWeight:500}}>Priority action: follow the 7-day plan and retry the adaptive interview after improving the top gap.</span>
-              </p>
+              <p style={{color:"var(--text-muted)",fontSize:14,lineHeight:1.85}}>{report.coachingSummary}</p>
+              {report.warning&&<p style={{color:"#F59E0B",fontSize:12,lineHeight:1.6,marginTop:10}}>OpenAI quota unavailable, so this report was generated by the local fallback report agent.</p>}
             </Card>
           </div>
         )}
 
         {tab==="questions"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}} className="fade-in">
-            {feedbackReport.questionFeedback.map((q,i)=>(
+            {report.questionFeedback.map((q,i)=>(
               <Card key={i}>
                 <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
                   <div style={{width:36,height:36,borderRadius:10,background:`${scoreColor(q.score)}18`,border:`1px solid ${scoreColor(q.score)}35`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:scoreColor(q.score),fontSize:15,flexShrink:0}}>{q.score}</div>
@@ -1292,7 +1408,7 @@ function ReportScreen({navigate,onLogout}){
 
         {tab==="plan"&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}} className="fade-in">
-            {feedbackReport.prepPlan.map((day)=>(
+            {report.prepPlan.map((day)=>(
               <Card key={day.day}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
                   <div style={{width:36,height:36,borderRadius:10,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:"#A78BFA",fontSize:13}}>D{day.day}</div>

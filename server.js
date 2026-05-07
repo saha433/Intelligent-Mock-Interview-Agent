@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import crypto from "crypto";
 import express from "express";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from "multer";
 import OpenAI from "openai";
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
@@ -308,6 +309,29 @@ function normalizeAnalysis(analysis) {
   };
 }
 
+function parseJsonText(text) {
+  const raw = String(text || "").trim();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Model did not return JSON.");
+    return JSON.parse(match[0]);
+  }
+}
+
+async function geminiJson(prompt) {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
+    generationConfig: { responseMimeType: "application/json" },
+  });
+  const result = await model.generateContent(prompt);
+  return parseJsonText(result.response.text());
+}
+
 async function extractResumeText(file) {
   if (!file) throw new Error("No resume file uploaded.");
 
@@ -354,6 +378,21 @@ ${resumeText.slice(0, 12000)}`,
   });
 
   return JSON.parse(response.choices[0].message.content);
+}
+
+async function analyzeWithGemini(resumeText) {
+  return geminiJson(`You analyze resumes for an agentic mock interview platform.
+Return JSON only with this exact shape:
+{
+  "candidate": {"name":"string","email":"string","targetRoles":["string"],"skills":["string"],"weakAreas":["string"],"projects":[{"name":"string","tech":["string"],"impact":"string"}],"experienceLevel":"string","totalExperience":"string"},
+  "extractedSkills": [{"name":"string","level":0-100,"category":"Language|Frontend|Backend|Database|DevOps|Data|Cloud|Other"}],
+  "bestFitRoles": [{"role":"string","confidence":0-100,"reasoning":"string"}],
+  "interviewFocusAreas": ["string"],
+  "weakMissingAreas": [{"area":"string","severity":"high|medium|low","suggestion":"string"}]
+}
+
+Resume:
+${resumeText.slice(0, 12000)}`);
 }
 
 function clampScore(value) {
@@ -462,6 +501,182 @@ ${JSON.stringify(payload).slice(0, 14000)}`,
   return JSON.parse(response.choices[0].message.content);
 }
 
+async function interviewTurnWithGemini(payload) {
+  return geminiJson(`You are an adaptive mock interview orchestrator.
+Evaluate the answer if present, adapt difficulty, and make the next question personalized to resume evidence.
+Return JSON only with this shape:
+{
+  "nextQuestion":"string",
+  "category":"string",
+  "difficulty":"Easy|Medium|Hard",
+  "reasoning":"string explaining why the agent adapted this way",
+  "scores":{"technical":0-100,"communication":0-100,"confidence":0-100,"engagement":0-100} OR null,
+  "coachSignal":"short string"
+}
+
+Context:
+${JSON.stringify(payload).slice(0, 14000)}`);
+}
+
+function fallbackReport(payload) {
+  const analysis = normalizeAnalysis(payload.resumeAnalysis || fallbackAnalysis);
+  const candidate = payload.candidate || { name: "Candidate" };
+  const scores = payload.scores || {};
+  const transcript = Array.isArray(payload.transcript) ? payload.transcript : [];
+  const answers = transcript.filter((item) => item.role === "candidate").map((item) => item.text || "");
+  const combined = answers.join(" ").toLowerCase();
+  const avg =
+    ((Number(scores.technical) || 60) +
+      (Number(scores.communication) || 60) +
+      (Number(scores.confidence) || 60) +
+      (Number(scores.engagement) || 60)) /
+    4;
+  const topRole = payload.targetRole || analysis.bestFitRoles[0]?.role || "Target Role";
+  const topSkill = analysis.extractedSkills[0]?.name || "core technical skills";
+  const topGap = analysis.weakMissingAreas[0]?.area || "technical depth";
+  const strongSignals = [
+    combined.includes("tradeoff") && "Discussed tradeoffs instead of only naming tools",
+    combined.includes("database") && "Connected answers to database or data-model choices",
+    combined.includes("scal") && "Showed awareness of scaling concerns",
+    combined.includes("docker") && "Mentioned deployment/containerization signals",
+    answers.length >= 3 && "Stayed engaged across multiple adaptive turns",
+  ].filter(Boolean);
+  const weakSignals = [
+    !combined.includes("tradeoff") && "Needs more explicit tradeoff reasoning",
+    !combined.includes("impact") && "Should quantify project outcomes and business impact",
+    !combined.includes("test") && "Testing/debugging process was not clearly explained",
+    (scores.confidence || 60) < 65 && "Confidence score dipped during harder follow-ups",
+    (scores.technical || 60) < 70 && `Needs stronger depth for ${topRole} interviews`,
+  ].filter(Boolean);
+
+  return {
+    source: "fallback-report-agent",
+    overallScore: clampScore(avg),
+    roleReadiness: clampScore((scores.technical || avg) * 0.65 + (scores.communication || avg) * 0.35),
+    technicalScore: clampScore(scores.technical || avg),
+    communicationScore: clampScore(scores.communication || avg),
+    confidenceScore: clampScore(scores.confidence || avg),
+    engagementScore: clampScore(scores.engagement || avg),
+    strengths: (strongSignals.length ? strongSignals : [
+      `Resume has relevant evidence for ${topRole}`,
+      `Strongest parsed skill signal: ${topSkill}`,
+      "Completed the adaptive interview flow",
+    ]).slice(0, 4),
+    weaknesses: (weakSignals.length ? weakSignals : [
+      `Deepen examples around ${topGap}`,
+      "Use more structured answer framing",
+      "Add metrics, constraints, and outcomes to project explanations",
+    ]).slice(0, 4),
+    questionFeedback: answers.slice(0, 5).map((answer, index) => {
+      const words = answer.trim().split(/\s+/).filter(Boolean).length;
+      const hasDepth = /tradeoff|scale|database|cache|test|latency|deploy|architecture/i.test(answer);
+      return {
+        question: `Adaptive turn ${index + 1}`,
+        score: clampScore(48 + Math.min(words, 120) * 0.25 + (hasDepth ? 18 : 0)),
+        feedback: hasDepth
+          ? "Good technical signal. The answer included concrete engineering concepts and can be strengthened with clearer constraints and metrics."
+          : "The answer was understandable but needs more concrete technical evidence, tradeoffs, and examples from the resume.",
+        improvement: `For ${topRole}, answer with: context, design choice, tradeoff, result, and what you would improve next.`,
+      };
+    }),
+    prepPlan: [
+      { day: 1, focus: `${topRole} Fundamentals`, tasks: [`Review key concepts around ${topSkill}`, "Write one STAR story for your strongest project"] },
+      { day: 2, focus: topGap, tasks: [`Study interview examples for ${topGap}`, "Prepare a 2-minute explanation with tradeoffs"] },
+      { day: 3, focus: "Project Deep-dive", tasks: ["Map architecture, data flow, and failure cases for your best project", "Add metrics and impact numbers"] },
+      { day: 4, focus: "Technical Communication", tasks: ["Practice concise answers using Context → Choice → Tradeoff → Result", "Record and review one mock response"] },
+      { day: 5, focus: "Role-Specific Practice", tasks: [`Do 5 questions for ${topRole}`, "Explain one system out loud without notes"] },
+      { day: 6, focus: "Mock Interview", tasks: ["Retry this adaptive interview", "Focus on the weakest score area"] },
+      { day: 7, focus: "Final Polish", tasks: ["Update resume bullets with stronger impact", "Prepare questions to ask the interviewer"] },
+    ],
+    coachingSummary: `${candidate.name || "The candidate"} is currently tracking at ${clampScore(avg)}% readiness for ${topRole}. The interview agent prioritized ${topGap} because it appeared as a resume/interview gap. The next improvement step is to make answers more evidence-based: explain constraints, tradeoffs, and measurable outcomes.`,
+  };
+}
+
+async function reportWithOpenAI(payload) {
+  if (!process.env.OPENAI_API_KEY) return null;
+
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const response = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a coaching report agent for an adaptive mock interview platform. Generate actionable, specific feedback from resume analysis, transcript, and scores. Return JSON only.",
+      },
+      {
+        role: "user",
+        content: `Return JSON with this exact shape:
+{
+  "overallScore":0-100,
+  "roleReadiness":0-100,
+  "technicalScore":0-100,
+  "communicationScore":0-100,
+  "confidenceScore":0-100,
+  "engagementScore":0-100,
+  "strengths":["string"],
+  "weaknesses":["string"],
+  "questionFeedback":[{"question":"string","score":0-100,"feedback":"string","improvement":"string"}],
+  "prepPlan":[{"day":1,"focus":"string","tasks":["string"]}],
+  "coachingSummary":"string"
+}
+
+Context:
+${JSON.stringify(payload).slice(0, 16000)}`,
+      },
+    ],
+  });
+
+  return JSON.parse(response.choices[0].message.content);
+}
+
+async function reportWithGemini(payload) {
+  return geminiJson(`You are a coaching report agent for an adaptive mock interview platform.
+Generate actionable, specific feedback from resume analysis, transcript, and scores.
+Return JSON only with this exact shape:
+{
+  "overallScore":0-100,
+  "roleReadiness":0-100,
+  "technicalScore":0-100,
+  "communicationScore":0-100,
+  "confidenceScore":0-100,
+  "engagementScore":0-100,
+  "strengths":["string"],
+  "weaknesses":["string"],
+  "questionFeedback":[{"question":"string","score":0-100,"feedback":"string","improvement":"string"}],
+  "prepPlan":[{"day":1,"focus":"string","tasks":["string"]}],
+  "coachingSummary":"string"
+}
+
+Context:
+${JSON.stringify(payload).slice(0, 16000)}`);
+}
+
+function normalizeReport(report, fallback) {
+  const merged = { ...fallback, ...(report || {}) };
+  return {
+    ...merged,
+    overallScore: clampScore(merged.overallScore || fallback.overallScore),
+    roleReadiness: clampScore(merged.roleReadiness || fallback.roleReadiness),
+    technicalScore: clampScore(merged.technicalScore || fallback.technicalScore),
+    communicationScore: clampScore(merged.communicationScore || fallback.communicationScore),
+    confidenceScore: clampScore(merged.confidenceScore || fallback.confidenceScore),
+    engagementScore: clampScore(merged.engagementScore || fallback.engagementScore),
+    strengths: Array.isArray(merged.strengths) && merged.strengths.length ? merged.strengths : fallback.strengths,
+    weaknesses: Array.isArray(merged.weaknesses) && merged.weaknesses.length ? merged.weaknesses : fallback.weaknesses,
+    questionFeedback:
+      Array.isArray(merged.questionFeedback) && merged.questionFeedback.length
+        ? merged.questionFeedback
+        : fallback.questionFeedback,
+    prepPlan:
+      Array.isArray(merged.prepPlan) && merged.prepPlan.length >= 7
+        ? merged.prepPlan
+        : fallback.prepPlan,
+    coachingSummary: merged.coachingSummary || fallback.coachingSummary,
+  };
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
@@ -561,8 +776,22 @@ app.post("/api/analyze-resume", upload.single("resume"), async (req, res) => {
       if (aiAnalysis) source = "openai";
     } catch (error) {
       aiError = error?.message || "OpenAI analysis failed.";
-      source = "fallback-openai-error";
-      console.warn("OpenAI analysis failed, using fallback analysis:", aiError);
+      console.warn("OpenAI analysis failed, trying Gemini:", aiError);
+    }
+
+    if (!aiAnalysis) {
+      try {
+        aiAnalysis = await analyzeWithGemini(resumeText);
+        if (aiAnalysis) {
+          source = "gemini";
+          aiError = null;
+        }
+      } catch (error) {
+        const geminiError = error?.message || "Gemini analysis failed.";
+        aiError = [aiError, geminiError].filter(Boolean).join(" | ");
+        source = aiError ? "fallback-ai-error" : "fallback";
+        console.warn("Gemini analysis failed, using fallback analysis:", geminiError);
+      }
     }
 
     const analysis = normalizeAnalysis(aiAnalysis || textFallbackAnalysis);
@@ -596,7 +825,21 @@ app.post("/api/interview-turn", async (req, res) => {
       if (turn) source = "openai-agent";
     } catch (error) {
       warning = error?.message || "OpenAI interview agent failed.";
-      console.warn("OpenAI interview agent failed, using fallback:", warning);
+      console.warn("OpenAI interview agent failed, trying Gemini:", warning);
+    }
+
+    if (!turn) {
+      try {
+        turn = await interviewTurnWithGemini(req.body);
+        if (turn) {
+          source = "gemini-agent";
+          warning = null;
+        }
+      } catch (error) {
+        const geminiWarning = error?.message || "Gemini interview agent failed.";
+        warning = [warning, geminiWarning].filter(Boolean).join(" | ");
+        console.warn("Gemini interview agent failed, using fallback:", geminiWarning);
+      }
     }
 
     const fallback = fallbackInterviewTurn(req.body || {});
@@ -606,6 +849,50 @@ app.post("/api/interview-turn", async (req, res) => {
     res.status(400).json({
       ok: false,
       error: error.message || "Could not generate interview turn.",
+    });
+  }
+});
+
+app.post("/api/generate-report", async (req, res) => {
+  let source = "fallback-report-agent";
+  let warning = null;
+
+  try {
+    let report = null;
+    try {
+      report = await reportWithOpenAI(req.body);
+      if (report) source = "openai-report-agent";
+    } catch (error) {
+      warning = error?.message || "OpenAI report agent failed.";
+      console.warn("OpenAI report agent failed, trying Gemini:", warning);
+    }
+
+    if (!report) {
+      try {
+        report = await reportWithGemini(req.body);
+        if (report) {
+          source = "gemini-report-agent";
+          warning = null;
+        }
+      } catch (error) {
+        const geminiWarning = error?.message || "Gemini report agent failed.";
+        warning = [warning, geminiWarning].filter(Boolean).join(" | ");
+        console.warn("Gemini report agent failed, using fallback:", geminiWarning);
+      }
+    }
+
+    const fallback = fallbackReport(req.body || {});
+    const normalizedReport = normalizeReport(report, fallback);
+    res.json({
+      ok: true,
+      source,
+      warning,
+      report: { ...normalizedReport, source, warning },
+    });
+  } catch (error) {
+    res.status(400).json({
+      ok: false,
+      error: error.message || "Could not generate report.",
     });
   }
 });
