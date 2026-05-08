@@ -130,6 +130,9 @@ const jobRecommendations = [
   {id:4,title:"Junior API Developer",company:"PayScale Tech",location:"Pune, IN",type:"Full-time",salary:"₹28k–40k/mo",matchScore:68,matchingSkills:["REST APIs","Python","PostgreSQL"],missingSkills:["Microservices","gRPC","AWS Lambda"],whyFits:"E-commerce API project shows real API-building at scale. Good entry point to grow into microservices.",priority:"Low",postedDays:12,logo:"PT",logoColor:"#D97706"},
 ];
 
+let currentJobRecommendations = [];
+let jobRecommendationSource = "";
+
 const interviewQuestions = [
   {id:1,question:"Walk me through the backend architecture of your e-commerce API project.",difficulty:"Medium",category:"Project Deep-dive",keywords:["architecture","API","database","scalability","endpoints","REST","cache","caching","rate","limit"],followUpEasy:"What technologies did you use and why did you choose them?",followUpHard:"How would you scale this API to handle 1 million requests per day?"},
   {id:2,question:"How would you design a URL shortening service like bit.ly?",difficulty:"Hard",category:"System Design",keywords:["hash","database","caching","Redis","scalability","load","balancer","collision","encode","CDN","sharding"],followUpEasy:"Start with just the core data model — what tables would you need?",followUpHard:"How would you handle 100M URLs with sub-10ms redirect latency globally?"},
@@ -190,6 +193,8 @@ function resetResumeState(){
   };
   generatedReport=null;
   lastInterviewSession=null;
+  currentJobRecommendations=[];
+  jobRecommendationSource="";
 }
 
 function analyzeAnswer(text, question) {
@@ -283,6 +288,108 @@ function LockedScreen({navigate,onLogout,title,body}){
       <div style={{maxWidth:720,margin:"0 auto",padding:"80px 24px"}}>
         <LockedCard title={title} body={body} action="Go to Resume Upload" navigate={navigate}/>
       </div>
+    </div>
+  );
+}
+
+function ClickSpark({
+  sparkColor="#ffffff",
+  sparkSize=10,
+  sparkRadius=15,
+  sparkCount=8,
+  duration=400,
+  easing="ease-out",
+  extraScale=1,
+  children
+}){
+  const canvasRef=useRef(null);
+  const sparksRef=useRef([]);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const parent=canvas.parentElement;
+    if(!parent)return;
+    let resizeTimeout;
+    const resizeCanvas=()=>{
+      const {width,height}=parent.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      const w=Math.max(1,Math.floor(width*dpr));
+      const h=Math.max(1,Math.floor(height*dpr));
+      if(canvas.width!==w||canvas.height!==h){
+        canvas.width=w;
+        canvas.height=h;
+        canvas.style.width=`${width}px`;
+        canvas.style.height=`${height}px`;
+      }
+    };
+    const handleResize=()=>{
+      clearTimeout(resizeTimeout);
+      resizeTimeout=setTimeout(resizeCanvas,100);
+    };
+    const ro=new ResizeObserver(handleResize);
+    ro.observe(parent);
+    resizeCanvas();
+    return()=>{ro.disconnect();clearTimeout(resizeTimeout);};
+  },[]);
+
+  const easeFunc=useCallback(t=>{
+    if(easing==="linear")return t;
+    if(easing==="ease-in")return t*t;
+    if(easing==="ease-in-out")return t<0.5?2*t*t:-1+(4-2*t)*t;
+    return t*(2-t);
+  },[easing]);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=canvas.getContext("2d");
+    let animationId;
+    const draw=timestamp=>{
+      const dpr=window.devicePixelRatio||1;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      sparksRef.current=sparksRef.current.filter(spark=>{
+        const elapsed=timestamp-spark.startTime;
+        if(elapsed>=duration)return false;
+        const progress=elapsed/duration;
+        const eased=easeFunc(progress);
+        const distance=eased*sparkRadius*extraScale*dpr;
+        const lineLength=sparkSize*(1-eased)*dpr;
+        const x1=spark.x+distance*Math.cos(spark.angle);
+        const y1=spark.y+distance*Math.sin(spark.angle);
+        const x2=spark.x+(distance+lineLength)*Math.cos(spark.angle);
+        const y2=spark.y+(distance+lineLength)*Math.sin(spark.angle);
+        ctx.strokeStyle=sparkColor;
+        ctx.lineWidth=2*dpr;
+        ctx.beginPath();
+        ctx.moveTo(x1,y1);
+        ctx.lineTo(x2,y2);
+        ctx.stroke();
+        return true;
+      });
+      animationId=requestAnimationFrame(draw);
+    };
+    animationId=requestAnimationFrame(draw);
+    return()=>cancelAnimationFrame(animationId);
+  },[sparkColor,sparkSize,sparkRadius,sparkCount,duration,easeFunc,extraScale]);
+
+  const handleClick=e=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const rect=canvas.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const x=(e.clientX-rect.left)*dpr;
+    const y=(e.clientY-rect.top)*dpr;
+    const now=performance.now();
+    sparksRef.current.push(...Array.from({length:sparkCount},(_,i)=>({
+      x,y,angle:(2*Math.PI*i)/sparkCount,startTime:now
+    })));
+  };
+
+  return(
+    <div onClick={handleClick} style={{position:"relative",width:"100%",minHeight:"100vh"}}>
+      <canvas ref={canvasRef} style={{width:"100%",height:"100%",display:"block",userSelect:"none",position:"fixed",inset:0,pointerEvents:"none",zIndex:9999}}/>
+      {children}
     </div>
   );
 }
@@ -525,6 +632,8 @@ function DashboardScreen({navigate,onLogout}){
       resumeState={uploaded:true,fileName:file.name||"Resume.pdf",parseInfo:nextParseInfo};
       generatedReport=null;
       lastInterviewSession=null;
+      currentJobRecommendations=[];
+      jobRecommendationSource="";
       setParseInfo(nextParseInfo);
       setUploaded(true);
     }catch(err){
@@ -572,7 +681,7 @@ function DashboardScreen({navigate,onLogout}){
                   <div style={{color:"#475569",fontSize:11,marginTop:4}}>PDF or TXT · max 5MB</div>
                 </div>
                 {uploadError&&<div style={{color:"#EF4444",fontSize:12,lineHeight:1.5,marginBottom:10}}>{uploadError}</div>}
-                <Btn onClick={()=>{setFname("Sample_Resume.pdf");candidate={name:"Aarav Mehta",email:"aarav.mehta@gmail.com",targetRoles:["Backend Developer","Full Stack Developer","Data Engineer"],skills:["Python","React","SQL","REST APIs","PostgreSQL","Docker","JavaScript","Node.js","Git"],weakAreas:["System Design","Cloud Deployment","Distributed Systems"],projects:[{name:"E-commerce API",tech:["Python","FastAPI","PostgreSQL","Docker"],impact:"10k+ req/day"},{name:"Analytics Dashboard",tech:["React","D3.js","REST APIs","SQL"],impact:"60% faster reports"},{name:"Resume Parser",tech:["Python","NLP","spaCy"],impact:"85% accuracy"}],experienceLevel:"Junior",totalExperience:"1.5 years"};const sampleInfo={source:"sample",textPreview:"Sample resume loaded for demo: Python, React, SQL, REST APIs, PostgreSQL, Docker, e-commerce API, analytics dashboard.",warning:null};resumeState={uploaded:true,fileName:"Sample_Resume.pdf",parseInfo:sampleInfo};generatedReport=null;lastInterviewSession=null;setParseInfo(sampleInfo);setUploaded(true);}} style={{width:"100%"}}>Use Sample Resume</Btn>
+                <Btn onClick={()=>{setFname("Sample_Resume.pdf");candidate={name:"Aarav Mehta",email:"aarav.mehta@gmail.com",targetRoles:["Backend Developer","Full Stack Developer","Data Engineer"],skills:["Python","React","SQL","REST APIs","PostgreSQL","Docker","JavaScript","Node.js","Git"],weakAreas:["System Design","Cloud Deployment","Distributed Systems"],projects:[{name:"E-commerce API",tech:["Python","FastAPI","PostgreSQL","Docker"],impact:"10k+ req/day"},{name:"Analytics Dashboard",tech:["React","D3.js","REST APIs","SQL"],impact:"60% faster reports"},{name:"Resume Parser",tech:["Python","NLP","spaCy"],impact:"85% accuracy"}],experienceLevel:"Junior",totalExperience:"1.5 years"};const sampleInfo={source:"sample",textPreview:"Sample resume loaded for demo: Python, React, SQL, REST APIs, PostgreSQL, Docker, e-commerce API, analytics dashboard.",warning:null};resumeState={uploaded:true,fileName:"Sample_Resume.pdf",parseInfo:sampleInfo};generatedReport=null;lastInterviewSession=null;currentJobRecommendations=[];jobRecommendationSource="";setParseInfo(sampleInfo);setUploaded(true);}} style={{width:"100%"}}>Use Sample Resume</Btn>
               </>
             ):(
               <>
@@ -814,9 +923,38 @@ function JobsScreen({navigate,onLogout}){
   }
   const [expanded,setExpanded]=useState(null);
   const [filter,setFilter]=useState("All");
+  const [jobs,setJobs]=useState(currentJobRecommendations.length?currentJobRecommendations:[]);
+  const [jobSource,setJobSource]=useState(jobRecommendationSource);
+  const [loadingJobs,setLoadingJobs]=useState(!currentJobRecommendations.length);
+  const [jobWarning,setJobWarning]=useState("");
   const filters=["All","High Match","Internship","Remote"];
 
-  const filtered=jobRecommendations.filter(j=>{
+  useEffect(()=>{
+    let cancelled=false;
+    setLoadingJobs(true);
+    setJobWarning("");
+    requestJobRecommendations()
+      .then(data=>{
+        if(cancelled)return;
+        currentJobRecommendations=data.jobs||[];
+        jobRecommendationSource=data.source||"fallback-job-pool";
+        setJobs(currentJobRecommendations);
+        setJobSource(jobRecommendationSource);
+        setJobWarning(data.warning||"");
+      })
+      .catch(err=>{
+        if(cancelled)return;
+        currentJobRecommendations=jobRecommendations;
+        jobRecommendationSource="local-ui-fallback";
+        setJobs(jobRecommendations);
+        setJobSource("local-ui-fallback");
+        setJobWarning(err.message||"Could not fetch live jobs.");
+      })
+      .finally(()=>{if(!cancelled)setLoadingJobs(false);});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const filtered=jobs.filter(j=>{
     if(filter==="All")return true;
     if(filter==="High Match")return j.matchScore>=80;
     if(filter==="Internship")return j.type==="Internship";
@@ -832,7 +970,11 @@ function JobsScreen({navigate,onLogout}){
           <div>
             <div style={{color:"#7C3AED",fontSize:12,fontWeight:600,marginBottom:4,letterSpacing:"1px"}}>JOB MATCHES</div>
             <h1 style={{fontSize:24,fontWeight:700,letterSpacing:"-0.5px"}}>Recommended for You</h1>
-            <p style={{color:"var(--text-subtle)",fontSize:14,marginTop:3}}>{jobRecommendations.length} roles matched · Ranked by AI compatibility score</p>
+            <p style={{color:"var(--text-subtle)",fontSize:14,marginTop:3}}>{loadingJobs?"Searching live postings...":`${jobs.length} roles matched · Ranked by resume compatibility score`}</p>
+            <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+              {jobSource&&<Tag color={["adzuna","remotive"].includes(jobSource)?"#10B981":"#F59E0B"}>{jobSource==="adzuna"?"Live via Adzuna":jobSource==="remotive"?"Live via Remotive":jobSource}</Tag>}
+              {jobWarning&&<Tag color="#F59E0B">Fallback active</Tag>}
+            </div>
           </div>
           <div style={{display:"flex",gap:6}}>
             {filters.map(f=>(
@@ -844,6 +986,15 @@ function JobsScreen({navigate,onLogout}){
           </div>
         </div>
 
+        {loadingJobs?(
+          <Card style={{minHeight:180,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
+            <div>
+              <div style={{fontSize:28,marginBottom:10}}>🔎</div>
+              <div style={{color:"var(--text)",fontWeight:700,marginBottom:5}}>Searching current job postings</div>
+              <p style={{color:"var(--text-subtle)",fontSize:13}}>The job agent is matching your resume skills against live roles.</p>
+            </div>
+          </Card>
+        ):(
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           {filtered.map(job=>(
             <div key={job.id} onClick={()=>setExpanded(expanded===job.id?null:job.id)} className="card-hover"
@@ -889,6 +1040,7 @@ function JobsScreen({navigate,onLogout}){
                     </div>
                   </div>
                   <Btn onClick={e=>{e.stopPropagation();navigate("interview");}} style={{width:"100%"}}>Practice Interview for This Role →</Btn>
+                  {job.url&&<a href={job.url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:"block",marginTop:9,textAlign:"center",color:"#A78BFA",fontSize:13,fontWeight:700,textDecoration:"none"}}>Apply / View Posting ↗</a>}
                 </div>
               ):(
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
@@ -899,6 +1051,7 @@ function JobsScreen({navigate,onLogout}){
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );
@@ -926,6 +1079,17 @@ async function requestGeneratedReport(payload){
   const data=await res.json();
   if(!res.ok||!data.ok)throw new Error(data.error||"Report agent failed");
   return data.report;
+}
+
+async function requestJobRecommendations(){
+  const res=await fetch("http://localhost:3001/api/recommend-jobs",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({candidate,resumeAnalysis}),
+  });
+  const data=await res.json();
+  if(!res.ok||!data.ok)throw new Error(data.error||"Job recommendation agent failed");
+  return data;
 }
 
 function InterviewScreen({navigate,onLogout}){
@@ -1512,7 +1676,9 @@ function App(){
   };
   return(
     <ThemeContext.Provider value={{isLight,toggleTheme:()=>setIsLight(v=>!v)}}>
-      {screens[screen]||screens.auth}
+      <ClickSpark sparkColor={isLight?"#7C3AED":"#FFFFFF"} sparkSize={10} sparkRadius={18} sparkCount={8} duration={420}>
+        {screens[screen]||screens.auth}
+      </ClickSpark>
     </ThemeContext.Provider>
   );
 }

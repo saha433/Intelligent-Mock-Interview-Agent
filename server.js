@@ -121,6 +121,63 @@ const fallbackAnalysis = {
   ],
 };
 
+const fallbackJobPool = [
+  {
+    title: "Backend Developer Intern",
+    company: "TechNova",
+    location: "Bangalore, IN",
+    type: "Internship",
+    salary: "Not listed",
+    requiredSkills: ["Python", "REST APIs", "PostgreSQL", "Docker", "SQL"],
+    description: "Build REST APIs, work with PostgreSQL, Docker, and backend services.",
+  },
+  {
+    title: "Frontend Developer Intern",
+    company: "PixelForge",
+    location: "Remote",
+    type: "Internship",
+    salary: "Not listed",
+    requiredSkills: ["React", "JavaScript", "TypeScript", "CSS", "REST APIs"],
+    description: "Build React interfaces, consume REST APIs, improve UI performance and accessibility.",
+  },
+  {
+    title: "Data Analyst",
+    company: "InsightLoop",
+    location: "Hyderabad, IN",
+    type: "Full-time",
+    salary: "Not listed",
+    requiredSkills: ["SQL", "Python", "Excel", "Power BI", "Tableau"],
+    description: "Analyze business data, build dashboards, write SQL queries, and communicate insights.",
+  },
+  {
+    title: "Data Engineer Trainee",
+    company: "DataNest",
+    location: "Bangalore, IN",
+    type: "Full-time",
+    salary: "Not listed",
+    requiredSkills: ["Python", "SQL", "ETL", "Airflow", "Spark"],
+    description: "Build data pipelines with Python, SQL, ETL workflows, Airflow, and cloud data systems.",
+  },
+  {
+    title: "Business Analyst Intern",
+    company: "MarketPulse",
+    location: "Mumbai, IN",
+    type: "Internship",
+    salary: "Not listed",
+    requiredSkills: ["Excel", "SQL", "Power BI", "Analytics", "Communication"],
+    description: "Work on business analysis, dashboards, reporting, Excel models, and stakeholder insights.",
+  },
+  {
+    title: "DevOps Engineer Intern",
+    company: "CloudHive",
+    location: "Pune, IN",
+    type: "Internship",
+    salary: "Not listed",
+    requiredSkills: ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux"],
+    description: "Support cloud deployments, Docker containers, CI/CD pipelines, and monitoring.",
+  },
+];
+
 const knownSkills = [
   "Python",
   "JavaScript",
@@ -677,6 +734,178 @@ function normalizeReport(report, fallback) {
   };
 }
 
+function stripHtml(value) {
+  return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function daysSince(dateValue) {
+  const time = dateValue ? new Date(dateValue).getTime() : Date.now();
+  if (Number.isNaN(time)) return 0;
+  return Math.max(0, Math.round((Date.now() - time) / 86400000));
+}
+
+function jobInitials(title) {
+  return String(title || "Job")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "JB";
+}
+
+function scoreJob(job, analysis) {
+  const role = analysis.bestFitRoles[0]?.role || "Job";
+  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 10);
+  const weakSkills = analysis.weakMissingAreas.map((gap) => gap.area).filter(Boolean).slice(0, 4);
+  const titleText = String(job.title || "").toLowerCase();
+  const text = `${job.title} ${job.company || ""} ${job.description || ""} ${(job.requiredSkills || []).join(" ")}`.toLowerCase();
+  const roleWords = role.toLowerCase().split(/\s+/).filter((word) => word.length > 2);
+  const matchingSkills = skills.filter((skill) => text.includes(skill.toLowerCase()));
+  const missingSkills = [...new Set([...(job.requiredSkills || []), ...weakSkills])]
+    .filter((skill) => !matchingSkills.some((matched) => matched.toLowerCase() === String(skill).toLowerCase()))
+    .slice(0, 4);
+  const titleRoleHits = roleWords.filter((word) => titleText.includes(word)).length;
+  const bodyRoleHits = roleWords.filter((word) => text.includes(word)).length;
+  const exactTitleRole = titleText.includes(role.toLowerCase());
+  const skillScore = skills.length ? (matchingSkills.length / skills.length) * 40 : 8;
+  const roleScore = exactTitleRole
+    ? 45
+    : roleWords.length
+      ? (titleRoleHits / roleWords.length) * 35 + (bodyRoleHits / roleWords.length) * 10
+      : 8;
+  const freshnessScore = Math.max(0, 5 - Math.min(daysSince(job.created), 5));
+  const matchScore = Math.min(98, Math.round(10 + skillScore + roleScore + freshnessScore));
+
+  return {
+    matchScore,
+    matchingSkills,
+    missingSkills,
+    priority: matchScore >= 82 ? "High" : matchScore >= 68 ? "Medium" : "Low",
+    whyFits:
+      matchingSkills.length > 0
+        ? `Your resume shows ${matchingSkills.slice(0, 4).join(", ")}, which aligns with this ${job.title} posting.`
+        : `This role aligns with your inferred target path (${role}), but you should review the listed gaps before applying.`,
+  };
+}
+
+function formatJob(rawJob, analysis, index, source) {
+  const title = rawJob.title || "Recommended Role";
+  const scored = scoreJob(rawJob, analysis);
+  return {
+    id: rawJob.id || `${source}-${index}`,
+    title,
+    company: rawJob.company || "Company not listed",
+    location: rawJob.location || "Location not listed",
+    type: rawJob.type || "Full-time",
+    salary: rawJob.salary || "Not listed",
+    matchScore: scored.matchScore,
+    matchingSkills: scored.matchingSkills,
+    missingSkills: scored.missingSkills,
+    whyFits: scored.whyFits,
+    priority: scored.priority,
+    postedDays: daysSince(rawJob.created),
+    logo: jobInitials(title),
+    logoColor: ["#7C3AED", "#2563EB", "#059669", "#D97706", "#DC2626"][index % 5],
+    url: rawJob.url || "",
+    source,
+  };
+}
+
+async function fetchAdzunaJobs(analysis) {
+  const appId = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) return null;
+
+  const country = (process.env.ADZUNA_COUNTRY || "in").toLowerCase();
+  const location = process.env.ADZUNA_LOCATION || "India";
+  const role = analysis.bestFitRoles[0]?.role || "Software Developer";
+  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 4);
+  const query = `${role} ${skills.join(" ")}`.trim();
+  const params = new URLSearchParams({
+    app_id: appId,
+    app_key: appKey,
+    what: query,
+    where: location,
+    results_per_page: "12",
+    sort_by: "date",
+    content_type: "application/json",
+  });
+  const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+  const response = await fetch(url);
+  const text = await response.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Adzuna returned ${response.status} ${response.statusText}. Check ADZUNA_APP_ID / ADZUNA_APP_KEY and country code.`);
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.display || data?.error || `Adzuna request failed with ${response.status}`);
+  }
+
+  const jobs = (data.results || []).map((job, index) =>
+    formatJob(
+      {
+        id: job.id,
+        title: job.title,
+        company: job.company?.display_name,
+        location: job.location?.display_name,
+        type: /intern/i.test(`${job.title} ${job.description}`) ? "Internship" : "Full-time",
+        salary:
+          job.salary_min || job.salary_max
+            ? `${job.salary_min ? Math.round(job.salary_min) : ""}${job.salary_min && job.salary_max ? " - " : ""}${job.salary_max ? Math.round(job.salary_max) : ""}`
+            : "Not listed",
+        description: stripHtml(job.description),
+        created: job.created,
+        url: job.redirect_url,
+      },
+      analysis,
+      index,
+      "adzuna",
+    ),
+  );
+
+  return jobs.sort((a, b) => b.matchScore - a.matchScore).slice(0, 8);
+}
+
+async function fetchRemotiveJobs(analysis) {
+  const role = analysis.bestFitRoles[0]?.role || "Software Developer";
+  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 3);
+  const query = encodeURIComponent(`${role} ${skills.join(" ")}`.trim());
+  const response = await fetch(`https://remotive.com/api/remote-jobs?search=${query}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(`Remotive request failed with ${response.status}`);
+
+  const jobs = (data.jobs || []).slice(0, 16).map((job, index) =>
+    formatJob(
+      {
+        id: job.id,
+        title: job.title,
+        company: job.company_name,
+        location: job.candidate_required_location || "Remote",
+        type: /intern/i.test(`${job.title} ${job.description}`) ? "Internship" : "Remote",
+        salary: job.salary || "Not listed",
+        description: stripHtml(job.description),
+        created: job.publication_date,
+        url: job.url,
+      },
+      analysis,
+      index,
+      "remotive",
+    ),
+  );
+
+  return jobs.sort((a, b) => b.matchScore - a.matchScore).slice(0, 8);
+}
+
+function fallbackJobs(analysis) {
+  return fallbackJobPool
+    .map((job, index) => formatJob(job, analysis, index, "fallback-job-pool"))
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 6);
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
@@ -895,6 +1124,43 @@ app.post("/api/generate-report", async (req, res) => {
       error: error.message || "Could not generate report.",
     });
   }
+});
+
+app.post("/api/recommend-jobs", async (req, res) => {
+  const analysis = normalizeAnalysis(req.body?.resumeAnalysis || fallbackAnalysis);
+  let source = "fallback-job-pool";
+  let warning = null;
+  let jobs = null;
+
+  try {
+    jobs = await fetchAdzunaJobs(analysis);
+    if (jobs?.length) source = "adzuna";
+  } catch (error) {
+    warning = error?.message || "Live job search failed.";
+    console.warn("Adzuna job search failed, trying Remotive:", warning);
+  }
+
+  if (!jobs?.length) {
+    try {
+      jobs = await fetchRemotiveJobs(analysis);
+      if (jobs?.length) source = "remotive";
+    } catch (error) {
+      const remotiveWarning = error?.message || "Remotive job search failed.";
+      warning = [warning, remotiveWarning].filter(Boolean).join(" | ");
+      console.warn("Remotive job search failed, using fallback pool:", remotiveWarning);
+    }
+  }
+
+  if (!jobs?.length) {
+    jobs = fallbackJobs(analysis);
+  }
+
+  res.json({
+    ok: true,
+    source,
+    warning,
+    jobs,
+  });
 });
 
 const port = Number(process.env.PORT || 3001);
