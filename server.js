@@ -17,6 +17,10 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("."));
 
+app.get("/", (_req, res) => {
+  res.sendFile("app.html", { root: process.cwd() });
+});
+
 const usersByEmail = new Map();
 const sessions = new Map();
 
@@ -43,7 +47,11 @@ function upsertUser({ name, email, provider, password }) {
   const normalizedEmail = email.toLowerCase();
   const existing = usersByEmail.get(normalizedEmail);
   if (existing) {
-    if (name && ["User", "Google User", "GitHub User"].includes(existing.name)) existing.name = name;
+    if (
+      name &&
+      ["User", "Google Account", "GitHub Account"].includes(existing.name)
+    )
+      existing.name = name;
     return existing;
   }
   const user = {
@@ -124,12 +132,13 @@ const fallbackAnalysis = {
 const fallbackJobPool = [
   {
     title: "Backend Developer Intern",
-    company: "TechNova",
+    company: "Resume-fit Hiring Team",
     location: "Bangalore, IN",
     type: "Internship",
     salary: "Not listed",
     requiredSkills: ["Python", "REST APIs", "PostgreSQL", "Docker", "SQL"],
-    description: "Build REST APIs, work with PostgreSQL, Docker, and backend services.",
+    description:
+      "Build REST APIs, work with PostgreSQL, Docker, and backend services.",
   },
   {
     title: "Frontend Developer Intern",
@@ -138,7 +147,8 @@ const fallbackJobPool = [
     type: "Internship",
     salary: "Not listed",
     requiredSkills: ["React", "JavaScript", "TypeScript", "CSS", "REST APIs"],
-    description: "Build React interfaces, consume REST APIs, improve UI performance and accessibility.",
+    description:
+      "Build React interfaces, consume REST APIs, improve UI performance and accessibility.",
   },
   {
     title: "Data Analyst",
@@ -147,16 +157,18 @@ const fallbackJobPool = [
     type: "Full-time",
     salary: "Not listed",
     requiredSkills: ["SQL", "Python", "Excel", "Power BI", "Tableau"],
-    description: "Analyze business data, build dashboards, write SQL queries, and communicate insights.",
+    description:
+      "Analyze business data, build dashboards, write SQL queries, and communicate insights.",
   },
   {
     title: "Data Engineer Trainee",
-    company: "DataNest",
+    company: "Resume-fit Data Team",
     location: "Bangalore, IN",
     type: "Full-time",
     salary: "Not listed",
     requiredSkills: ["Python", "SQL", "ETL", "Airflow", "Spark"],
-    description: "Build data pipelines with Python, SQL, ETL workflows, Airflow, and cloud data systems.",
+    description:
+      "Build data pipelines with Python, SQL, ETL workflows, Airflow, and cloud data systems.",
   },
   {
     title: "Business Analyst Intern",
@@ -165,16 +177,18 @@ const fallbackJobPool = [
     type: "Internship",
     salary: "Not listed",
     requiredSkills: ["Excel", "SQL", "Power BI", "Analytics", "Communication"],
-    description: "Work on business analysis, dashboards, reporting, Excel models, and stakeholder insights.",
+    description:
+      "Work on business analysis, dashboards, reporting, Excel models, and stakeholder insights.",
   },
   {
     title: "DevOps Engineer Intern",
-    company: "CloudHive",
+    company: "Resume-fit Cloud Team",
     location: "Pune, IN",
     type: "Internship",
     salary: "Not listed",
     requiredSkills: ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux"],
-    description: "Support cloud deployments, Docker containers, CI/CD pipelines, and monitoring.",
+    description:
+      "Support cloud deployments, Docker containers, CI/CD pipelines, and monitoring.",
   },
 ];
 
@@ -217,49 +231,96 @@ function deriveCandidateProfile(resumeText) {
     .map((line) => line.trim())
     .filter(Boolean);
   const firstUsefulLine =
-    lines.find((line) => /^[A-Z][A-Za-z .'-]{2,50}$/.test(line)) || lines[0] || "Candidate";
-  const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
+    lines.find((line) => /^[A-Z][A-Za-z .'-]{2,50}$/.test(line)) ||
+    lines[0] ||
+    "Candidate";
+  const email =
+    resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
   const lower = resumeText.toLowerCase();
   const skillPresent = (skill) => {
-    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\ /g, "\\s+");
-    return new RegExp(`(^|[^a-z0-9+#.])${escaped}([^a-z0-9+#.]|$)`, "i").test(resumeText);
+    const escaped = skill
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\\ /g, "\\s+");
+    return new RegExp(`(^|[^a-z0-9+#.])${escaped}([^a-z0-9+#.]|$)`, "i").test(
+      resumeText,
+    );
   };
   const skills = knownSkills.filter(skillPresent);
   const projectLines = lines
-    .filter((line) => /project|built|developed|created|implemented|dashboard|app|api|system/i.test(line))
+    .filter((line) =>
+      /project|built|developed|created|implemented|dashboard|app|api|system/i.test(
+        line,
+      ),
+    )
     .slice(0, 3);
 
   const roleScores = [
     {
       role: "Backend Developer",
       score:
-        ["python", "node", "express", "fastapi", "django", "sql", "postgres", "api", "docker"].filter((k) =>
-          lower.includes(k),
-        ).length * 10,
+        [
+          "python",
+          "node",
+          "express",
+          "fastapi",
+          "django",
+          "sql",
+          "postgres",
+          "api",
+          "docker",
+        ].filter((k) => lower.includes(k)).length * 10,
     },
     {
       role: "Frontend Developer",
-      score: ["react", "next", "javascript", "typescript", "css", "tailwind", "ui"].filter((k) =>
-        lower.includes(k),
-      ).length * 12,
+      score:
+        [
+          "react",
+          "next",
+          "javascript",
+          "typescript",
+          "css",
+          "tailwind",
+          "ui",
+        ].filter((k) => lower.includes(k)).length * 12,
     },
     {
       role: "Data Analyst",
-      score: ["sql", "excel", "tableau", "power bi", "pandas", "dashboard", "analytics"].filter((k) =>
-        lower.includes(k),
-      ).length * 12,
+      score:
+        [
+          "sql",
+          "excel",
+          "tableau",
+          "power bi",
+          "pandas",
+          "dashboard",
+          "analytics",
+        ].filter((k) => lower.includes(k)).length * 12,
     },
     {
       role: "Data Engineer",
-      score: ["python", "sql", "spark", "airflow", "kafka", "pipeline", "etl"].filter((k) =>
-        lower.includes(k),
-      ).length * 12,
+      score:
+        [
+          "python",
+          "sql",
+          "spark",
+          "airflow",
+          "kafka",
+          "pipeline",
+          "etl",
+        ].filter((k) => lower.includes(k)).length * 12,
     },
     {
       role: "DevOps Engineer",
-      score: ["docker", "kubernetes", "aws", "cloud", "ci/cd", "jenkins", "terraform"].filter((k) =>
-        lower.includes(k),
-      ).length * 14,
+      score:
+        [
+          "docker",
+          "kubernetes",
+          "aws",
+          "cloud",
+          "ci/cd",
+          "jenkins",
+          "terraform",
+        ].filter((k) => lower.includes(k)).length * 14,
     },
   ].sort((a, b) => b.score - a.score);
 
@@ -267,12 +328,16 @@ function deriveCandidateProfile(resumeText) {
     name: firstUsefulLine.replace(/\s+/g, " ").slice(0, 60),
     email,
     targetRoles: roleScores.slice(0, 3).map((role) => role.role),
-    skills: skills.length ? skills : fallbackAnalysis.extractedSkills.map((skill) => skill.name),
+    skills: skills.length
+      ? skills
+      : fallbackAnalysis.extractedSkills.map((skill) => skill.name),
     weakAreas: ["System Design", "Cloud Deployment", "Communication Depth"],
     projects: projectLines.length
       ? projectLines.map((line, index) => ({
           name: line.slice(0, 54),
-          tech: skills.slice(index, index + 4).length ? skills.slice(index, index + 4) : skills.slice(0, 4),
+          tech: skills.slice(index, index + 4).length
+            ? skills.slice(index, index + 4)
+            : skills.slice(0, 4),
           impact: "Resume evidence",
         }))
       : [
@@ -287,7 +352,9 @@ function deriveCandidateProfile(resumeText) {
       : /intern|student|fresher|entry/i.test(resumeText)
         ? "Entry level"
         : "Junior/Mid",
-    totalExperience: resumeText.match(/(\d+(\.\d+)?)\+?\s*(years|yrs|year)/i)?.[0] || "Estimated from resume",
+    totalExperience:
+      resumeText.match(/(\d+(\.\d+)?)\+?\s*(years|yrs|year)/i)?.[0] ||
+      "Estimated from resume",
   };
 }
 
@@ -316,17 +383,20 @@ function buildFallbackAnalysisFromText(resumeText) {
     !/system design|scalability|distributed/i.test(lower) && {
       area: "System Design",
       severity: "high",
-      suggestion: "Practice explaining scalability, tradeoffs, caching, and database choices.",
+      suggestion:
+        "Practice explaining scalability, tradeoffs, caching, and database choices.",
     },
     !/aws|gcp|azure|cloud/i.test(lower) && {
       area: "Cloud Deployment",
       severity: "medium",
-      suggestion: "Add hands-on deployment experience using AWS, GCP, Azure, or Render.",
+      suggestion:
+        "Add hands-on deployment experience using AWS, GCP, Azure, or Render.",
     },
     !/test|testing|jest|pytest|unit/i.test(lower) && {
       area: "Testing",
       severity: "medium",
-      suggestion: "Prepare examples around unit tests, integration tests, and debugging.",
+      suggestion:
+        "Prepare examples around unit tests, integration tests, and debugging.",
     },
   ].filter(Boolean);
 
@@ -347,7 +417,8 @@ function buildFallbackAnalysisFromText(resumeText) {
 function normalizeAnalysis(analysis) {
   return {
     extractedSkills:
-      Array.isArray(analysis?.extractedSkills) && analysis.extractedSkills.length
+      Array.isArray(analysis?.extractedSkills) &&
+      analysis.extractedSkills.length
         ? analysis.extractedSkills.slice(0, 10)
         : fallbackAnalysis.extractedSkills,
     bestFitRoles:
@@ -360,7 +431,8 @@ function normalizeAnalysis(analysis) {
         ? analysis.interviewFocusAreas.slice(0, 6)
         : fallbackAnalysis.interviewFocusAreas,
     weakMissingAreas:
-      Array.isArray(analysis?.weakMissingAreas) && analysis.weakMissingAreas.length
+      Array.isArray(analysis?.weakMissingAreas) &&
+      analysis.weakMissingAreas.length
         ? analysis.weakMissingAreas.slice(0, 6)
         : fallbackAnalysis.weakMissingAreas,
   };
@@ -392,7 +464,10 @@ async function geminiJson(prompt) {
 async function extractResumeText(file) {
   if (!file) throw new Error("No resume file uploaded.");
 
-  if (file.mimetype === "application/pdf" || file.originalname.endsWith(".pdf")) {
+  if (
+    file.mimetype === "application/pdf" ||
+    file.originalname.endsWith(".pdf")
+  ) {
     const parsed = await pdfParse(file.buffer);
     return parsed.text.trim();
   }
@@ -457,15 +532,21 @@ function clampScore(value) {
 }
 
 function fallbackInterviewTurn(payload) {
-  const analysis = normalizeAnalysis(payload.resumeAnalysis || fallbackAnalysis);
-  const role = payload.targetRole || analysis.bestFitRoles[0]?.role || "Backend Developer";
+  const analysis = normalizeAnalysis(
+    payload.resumeAnalysis || fallbackAnalysis,
+  );
+  const role =
+    payload.targetRole || analysis.bestFitRoles[0]?.role || "Backend Developer";
   const difficulty = payload.difficulty || "Medium";
   const answer = String(payload.answer || "");
   const lower = answer.toLowerCase();
   const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
   const skills = analysis.extractedSkills.map((s) => s.name).slice(0, 6);
   const weakArea = analysis.weakMissingAreas[0]?.area || "System Design";
-  const focus = analysis.interviewFocusAreas[payload.answered % analysis.interviewFocusAreas.length] || "project depth";
+  const focus =
+    analysis.interviewFocusAreas[
+      payload.answered % analysis.interviewFocusAreas.length
+    ] || "project depth";
   const keywords = [
     "tradeoff",
     "scalability",
@@ -493,8 +574,12 @@ function fallbackInterviewTurn(payload) {
   }
 
   const technical = clampScore(45 + words * 0.45 + hits * 8);
-  const communication = clampScore(58 + Math.min(words, 120) * 0.18 - (words < 25 ? 10 : 0));
-  const confidence = clampScore(55 + Math.min(words, 90) * 0.16 + hits * 3 - (words < 20 ? 12 : 0));
+  const communication = clampScore(
+    58 + Math.min(words, 120) * 0.18 - (words < 25 ? 10 : 0),
+  );
+  const confidence = clampScore(
+    55 + Math.min(words, 90) * 0.16 + hits * 3 - (words < 20 ? 12 : 0),
+  );
   const engagement = clampScore(65 + Math.min(words, 80) * 0.12);
   const weak = technical < 58 || words < 35;
   const strong = !weak && technical >= 78;
@@ -508,7 +593,11 @@ function fallbackInterviewTurn(payload) {
   return {
     source: "fallback-agent",
     nextQuestion,
-    category: weak ? "Foundation Recovery" : strong ? "Advanced Probe" : "Targeted Follow-up",
+    category: weak
+      ? "Foundation Recovery"
+      : strong
+        ? "Advanced Probe"
+        : "Targeted Follow-up",
     difficulty: nextDifficulty,
     reasoning: weak
       ? `The answer was brief or missed key signals, so I am lowering difficulty and asking a scaffolded follow-up around ${focus}.`
@@ -576,11 +665,18 @@ ${JSON.stringify(payload).slice(0, 14000)}`);
 }
 
 function fallbackReport(payload) {
-  const analysis = normalizeAnalysis(payload.resumeAnalysis || fallbackAnalysis);
+  const analysis = normalizeAnalysis(
+    payload.resumeAnalysis || fallbackAnalysis,
+  );
   const candidate = payload.candidate || { name: "Candidate" };
   const scores = payload.scores || {};
-  const transcript = Array.isArray(payload.transcript) ? payload.transcript : [];
-  const answers = transcript.filter((item) => item.role === "candidate").map((item) => item.text || "");
+  const av = payload.audioVideoSignals || {};
+  const transcript = Array.isArray(payload.transcript)
+    ? payload.transcript
+    : [];
+  const answers = transcript
+    .filter((item) => item.role === "candidate")
+    .map((item) => item.text || "");
   const combined = answers.join(" ").toLowerCase();
   const avg =
     ((Number(scores.technical) || 60) +
@@ -588,48 +684,80 @@ function fallbackReport(payload) {
       (Number(scores.confidence) || 60) +
       (Number(scores.engagement) || 60)) /
     4;
-  const topRole = payload.targetRole || analysis.bestFitRoles[0]?.role || "Target Role";
+  const topRole =
+    payload.targetRole || analysis.bestFitRoles[0]?.role || "Target Role";
   const topSkill = analysis.extractedSkills[0]?.name || "core technical skills";
   const topGap = analysis.weakMissingAreas[0]?.area || "technical depth";
   const strongSignals = [
-    combined.includes("tradeoff") && "Discussed tradeoffs instead of only naming tools",
-    combined.includes("database") && "Connected answers to database or data-model choices",
+    combined.includes("tradeoff") &&
+      "Discussed tradeoffs instead of only naming tools",
+    combined.includes("database") &&
+      "Connected answers to database or data-model choices",
     combined.includes("scal") && "Showed awareness of scaling concerns",
-    combined.includes("docker") && "Mentioned deployment/containerization signals",
+    combined.includes("docker") &&
+      "Mentioned deployment/containerization signals",
+    Number(av.eyeContact) >= 70 &&
+      "Maintained strong visual engagement during the video interview",
+    Number(av.clarity) >= 70 &&
+      "Speech clarity signal stayed strong during live analysis",
     answers.length >= 3 && "Stayed engaged across multiple adaptive turns",
   ].filter(Boolean);
   const weakSignals = [
     !combined.includes("tradeoff") && "Needs more explicit tradeoff reasoning",
-    !combined.includes("impact") && "Should quantify project outcomes and business impact",
-    !combined.includes("test") && "Testing/debugging process was not clearly explained",
-    (scores.confidence || 60) < 65 && "Confidence score dipped during harder follow-ups",
-    (scores.technical || 60) < 70 && `Needs stronger depth for ${topRole} interviews`,
+    !combined.includes("impact") &&
+      "Should quantify project outcomes and business impact",
+    !combined.includes("test") &&
+      "Testing/debugging process was not clearly explained",
+    Number(av.pauseCount) > 6 &&
+      "Long pauses increased during the live audio analysis",
+    Number(av.eyeContact) > 0 &&
+      Number(av.eyeContact) < 50 &&
+      "Eye contact/posture signals need more consistency on camera",
+    Number(av.stress) > 65 &&
+      "Live confidence signals showed elevated stress under follow-up questions",
+    (scores.confidence || 60) < 65 &&
+      "Confidence score dipped during harder follow-ups",
+    (scores.technical || 60) < 70 &&
+      `Needs stronger depth for ${topRole} interviews`,
   ].filter(Boolean);
 
   return {
     source: "fallback-report-agent",
     overallScore: clampScore(avg),
-    roleReadiness: clampScore((scores.technical || avg) * 0.65 + (scores.communication || avg) * 0.35),
+    roleReadiness: clampScore(
+      (scores.technical || avg) * 0.65 + (scores.communication || avg) * 0.35,
+    ),
     technicalScore: clampScore(scores.technical || avg),
     communicationScore: clampScore(scores.communication || avg),
     confidenceScore: clampScore(scores.confidence || avg),
     engagementScore: clampScore(scores.engagement || avg),
-    strengths: (strongSignals.length ? strongSignals : [
-      `Resume has relevant evidence for ${topRole}`,
-      `Strongest parsed skill signal: ${topSkill}`,
-      "Completed the adaptive interview flow",
-    ]).slice(0, 4),
-    weaknesses: (weakSignals.length ? weakSignals : [
-      `Deepen examples around ${topGap}`,
-      "Use more structured answer framing",
-      "Add metrics, constraints, and outcomes to project explanations",
-    ]).slice(0, 4),
+    strengths: (strongSignals.length
+      ? strongSignals
+      : [
+          `Resume has relevant evidence for ${topRole}`,
+          `Strongest parsed skill signal: ${topSkill}`,
+          "Completed the adaptive interview flow",
+        ]
+    ).slice(0, 4),
+    weaknesses: (weakSignals.length
+      ? weakSignals
+      : [
+          `Deepen examples around ${topGap}`,
+          "Use more structured answer framing",
+          "Add metrics, constraints, and outcomes to project explanations",
+        ]
+    ).slice(0, 4),
     questionFeedback: answers.slice(0, 5).map((answer, index) => {
       const words = answer.trim().split(/\s+/).filter(Boolean).length;
-      const hasDepth = /tradeoff|scale|database|cache|test|latency|deploy|architecture/i.test(answer);
+      const hasDepth =
+        /tradeoff|scale|database|cache|test|latency|deploy|architecture/i.test(
+          answer,
+        );
       return {
         question: `Adaptive turn ${index + 1}`,
-        score: clampScore(48 + Math.min(words, 120) * 0.25 + (hasDepth ? 18 : 0)),
+        score: clampScore(
+          48 + Math.min(words, 120) * 0.25 + (hasDepth ? 18 : 0),
+        ),
         feedback: hasDepth
           ? "Good technical signal. The answer included concrete engineering concepts and can be strengthened with clearer constraints and metrics."
           : "The answer was understandable but needs more concrete technical evidence, tradeoffs, and examples from the resume.",
@@ -637,15 +765,64 @@ function fallbackReport(payload) {
       };
     }),
     prepPlan: [
-      { day: 1, focus: `${topRole} Fundamentals`, tasks: [`Review key concepts around ${topSkill}`, "Write one STAR story for your strongest project"] },
-      { day: 2, focus: topGap, tasks: [`Study interview examples for ${topGap}`, "Prepare a 2-minute explanation with tradeoffs"] },
-      { day: 3, focus: "Project Deep-dive", tasks: ["Map architecture, data flow, and failure cases for your best project", "Add metrics and impact numbers"] },
-      { day: 4, focus: "Technical Communication", tasks: ["Practice concise answers using Context → Choice → Tradeoff → Result", "Record and review one mock response"] },
-      { day: 5, focus: "Role-Specific Practice", tasks: [`Do 5 questions for ${topRole}`, "Explain one system out loud without notes"] },
-      { day: 6, focus: "Mock Interview", tasks: ["Retry this adaptive interview", "Focus on the weakest score area"] },
-      { day: 7, focus: "Final Polish", tasks: ["Update resume bullets with stronger impact", "Prepare questions to ask the interviewer"] },
+      {
+        day: 1,
+        focus: `${topRole} Fundamentals`,
+        tasks: [
+          `Review key concepts around ${topSkill}`,
+          "Write one STAR story for your strongest project",
+        ],
+      },
+      {
+        day: 2,
+        focus: topGap,
+        tasks: [
+          `Study interview examples for ${topGap}`,
+          "Prepare a 2-minute explanation with tradeoffs",
+        ],
+      },
+      {
+        day: 3,
+        focus: "Project Deep-dive",
+        tasks: [
+          "Map architecture, data flow, and failure cases for your best project",
+          "Add metrics and impact numbers",
+        ],
+      },
+      {
+        day: 4,
+        focus: "Technical Communication",
+        tasks: [
+          "Practice concise answers using Context → Choice → Tradeoff → Result",
+          "Record and review one mock response",
+        ],
+      },
+      {
+        day: 5,
+        focus: "Role-Specific Practice",
+        tasks: [
+          `Do 5 questions for ${topRole}`,
+          "Explain one system out loud without notes",
+        ],
+      },
+      {
+        day: 6,
+        focus: "Mock Interview",
+        tasks: [
+          "Retry this adaptive interview",
+          "Focus on the weakest score area",
+        ],
+      },
+      {
+        day: 7,
+        focus: "Final Polish",
+        tasks: [
+          "Update resume bullets with stronger impact",
+          "Prepare questions to ask the interviewer",
+        ],
+      },
     ],
-    coachingSummary: `${candidate.name || "The candidate"} is currently tracking at ${clampScore(avg)}% readiness for ${topRole}. The interview agent prioritized ${topGap} because it appeared as a resume/interview gap. The next improvement step is to make answers more evidence-based: explain constraints, tradeoffs, and measurable outcomes.`,
+    coachingSummary: `${candidate.name || "The candidate"} is currently tracking at ${clampScore(avg)}% readiness for ${topRole}. The interview agent prioritized ${topGap} because it appeared as a resume/interview gap. Live audio/video signals reported ${clampScore(av.confidence || scores.confidence || avg)}% confidence, ${clampScore(av.eyeContact || 0)}% eye-contact consistency, and ${Number(av.pauseCount) || 0} detected pause shifts. The next improvement step is to make answers more evidence-based: explain constraints, tradeoffs, and measurable outcomes.`,
   };
 }
 
@@ -716,12 +893,26 @@ function normalizeReport(report, fallback) {
     ...merged,
     overallScore: clampScore(merged.overallScore || fallback.overallScore),
     roleReadiness: clampScore(merged.roleReadiness || fallback.roleReadiness),
-    technicalScore: clampScore(merged.technicalScore || fallback.technicalScore),
-    communicationScore: clampScore(merged.communicationScore || fallback.communicationScore),
-    confidenceScore: clampScore(merged.confidenceScore || fallback.confidenceScore),
-    engagementScore: clampScore(merged.engagementScore || fallback.engagementScore),
-    strengths: Array.isArray(merged.strengths) && merged.strengths.length ? merged.strengths : fallback.strengths,
-    weaknesses: Array.isArray(merged.weaknesses) && merged.weaknesses.length ? merged.weaknesses : fallback.weaknesses,
+    technicalScore: clampScore(
+      merged.technicalScore || fallback.technicalScore,
+    ),
+    communicationScore: clampScore(
+      merged.communicationScore || fallback.communicationScore,
+    ),
+    confidenceScore: clampScore(
+      merged.confidenceScore || fallback.confidenceScore,
+    ),
+    engagementScore: clampScore(
+      merged.engagementScore || fallback.engagementScore,
+    ),
+    strengths:
+      Array.isArray(merged.strengths) && merged.strengths.length
+        ? merged.strengths
+        : fallback.strengths,
+    weaknesses:
+      Array.isArray(merged.weaknesses) && merged.weaknesses.length
+        ? merged.weaknesses
+        : fallback.weaknesses,
     questionFeedback:
       Array.isArray(merged.questionFeedback) && merged.questionFeedback.length
         ? merged.questionFeedback
@@ -735,7 +926,10 @@ function normalizeReport(report, fallback) {
 }
 
 function stripHtml(value) {
-  return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function daysSince(dateValue) {
@@ -745,36 +939,65 @@ function daysSince(dateValue) {
 }
 
 function jobInitials(title) {
-  return String(title || "Job")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "JB";
+  return (
+    String(title || "Job")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "JB"
+  );
 }
 
 function scoreJob(job, analysis) {
   const role = analysis.bestFitRoles[0]?.role || "Job";
-  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 10);
-  const weakSkills = analysis.weakMissingAreas.map((gap) => gap.area).filter(Boolean).slice(0, 4);
-  const titleText = String(job.title || "").toLowerCase();
-  const text = `${job.title} ${job.company || ""} ${job.description || ""} ${(job.requiredSkills || []).join(" ")}`.toLowerCase();
-  const roleWords = role.toLowerCase().split(/\s+/).filter((word) => word.length > 2);
-  const matchingSkills = skills.filter((skill) => text.includes(skill.toLowerCase()));
-  const missingSkills = [...new Set([...(job.requiredSkills || []), ...weakSkills])]
-    .filter((skill) => !matchingSkills.some((matched) => matched.toLowerCase() === String(skill).toLowerCase()))
+  const skills = analysis.extractedSkills
+    .map((skill) => skill.name)
+    .filter(Boolean)
+    .slice(0, 10);
+  const weakSkills = analysis.weakMissingAreas
+    .map((gap) => gap.area)
+    .filter(Boolean)
     .slice(0, 4);
-  const titleRoleHits = roleWords.filter((word) => titleText.includes(word)).length;
+  const titleText = String(job.title || "").toLowerCase();
+  const text =
+    `${job.title} ${job.company || ""} ${job.description || ""} ${(job.requiredSkills || []).join(" ")}`.toLowerCase();
+  const roleWords = role
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  const matchingSkills = skills.filter((skill) =>
+    text.includes(skill.toLowerCase()),
+  );
+  const missingSkills = [
+    ...new Set([...(job.requiredSkills || []), ...weakSkills]),
+  ]
+    .filter(
+      (skill) =>
+        !matchingSkills.some(
+          (matched) => matched.toLowerCase() === String(skill).toLowerCase(),
+        ),
+    )
+    .slice(0, 4);
+  const titleRoleHits = roleWords.filter((word) =>
+    titleText.includes(word),
+  ).length;
   const bodyRoleHits = roleWords.filter((word) => text.includes(word)).length;
   const exactTitleRole = titleText.includes(role.toLowerCase());
-  const skillScore = skills.length ? (matchingSkills.length / skills.length) * 40 : 8;
+  const skillScore = skills.length
+    ? (matchingSkills.length / skills.length) * 40
+    : 8;
   const roleScore = exactTitleRole
     ? 45
     : roleWords.length
-      ? (titleRoleHits / roleWords.length) * 35 + (bodyRoleHits / roleWords.length) * 10
+      ? (titleRoleHits / roleWords.length) * 35 +
+        (bodyRoleHits / roleWords.length) * 10
       : 8;
   const freshnessScore = Math.max(0, 5 - Math.min(daysSince(job.created), 5));
-  const matchScore = Math.min(98, Math.round(10 + skillScore + roleScore + freshnessScore));
+  const matchScore = Math.min(
+    98,
+    Math.round(10 + skillScore + roleScore + freshnessScore),
+  );
 
   return {
     matchScore,
@@ -805,7 +1028,9 @@ function formatJob(rawJob, analysis, index, source) {
     priority: scored.priority,
     postedDays: daysSince(rawJob.created),
     logo: jobInitials(title),
-    logoColor: ["#7C3AED", "#2563EB", "#059669", "#D97706", "#DC2626"][index % 5],
+    logoColor: ["#7C3AED", "#2563EB", "#059669", "#D97706", "#DC2626"][
+      index % 5
+    ],
     url: rawJob.url || "",
     source,
   };
@@ -819,7 +1044,10 @@ async function fetchAdzunaJobs(analysis) {
   const country = (process.env.ADZUNA_COUNTRY || "in").toLowerCase();
   const location = process.env.ADZUNA_LOCATION || "India";
   const role = analysis.bestFitRoles[0]?.role || "Software Developer";
-  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 4);
+  const skills = analysis.extractedSkills
+    .map((skill) => skill.name)
+    .filter(Boolean)
+    .slice(0, 4);
   const query = `${role} ${skills.join(" ")}`.trim();
   const params = new URLSearchParams({
     app_id: appId,
@@ -837,11 +1065,17 @@ async function fetchAdzunaJobs(analysis) {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`Adzuna returned ${response.status} ${response.statusText}. Check ADZUNA_APP_ID / ADZUNA_APP_KEY and country code.`);
+    throw new Error(
+      `Adzuna returned ${response.status} ${response.statusText}. Check ADZUNA_APP_ID / ADZUNA_APP_KEY and country code.`,
+    );
   }
 
   if (!response.ok) {
-    throw new Error(data?.display || data?.error || `Adzuna request failed with ${response.status}`);
+    throw new Error(
+      data?.display ||
+        data?.error ||
+        `Adzuna request failed with ${response.status}`,
+    );
   }
 
   const jobs = (data.results || []).map((job, index) =>
@@ -851,7 +1085,9 @@ async function fetchAdzunaJobs(analysis) {
         title: job.title,
         company: job.company?.display_name,
         location: job.location?.display_name,
-        type: /intern/i.test(`${job.title} ${job.description}`) ? "Internship" : "Full-time",
+        type: /intern/i.test(`${job.title} ${job.description}`)
+          ? "Internship"
+          : "Full-time",
         salary:
           job.salary_min || job.salary_max
             ? `${job.salary_min ? Math.round(job.salary_min) : ""}${job.salary_min && job.salary_max ? " - " : ""}${job.salary_max ? Math.round(job.salary_max) : ""}`
@@ -871,11 +1107,17 @@ async function fetchAdzunaJobs(analysis) {
 
 async function fetchRemotiveJobs(analysis) {
   const role = analysis.bestFitRoles[0]?.role || "Software Developer";
-  const skills = analysis.extractedSkills.map((skill) => skill.name).filter(Boolean).slice(0, 3);
+  const skills = analysis.extractedSkills
+    .map((skill) => skill.name)
+    .filter(Boolean)
+    .slice(0, 3);
   const query = encodeURIComponent(`${role} ${skills.join(" ")}`.trim());
-  const response = await fetch(`https://remotive.com/api/remote-jobs?search=${query}`);
+  const response = await fetch(
+    `https://remotive.com/api/remote-jobs?search=${query}`,
+  );
   const data = await response.json();
-  if (!response.ok) throw new Error(`Remotive request failed with ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Remotive request failed with ${response.status}`);
 
   const jobs = (data.jobs || []).slice(0, 16).map((job, index) =>
     formatJob(
@@ -884,7 +1126,9 @@ async function fetchRemotiveJobs(analysis) {
         title: job.title,
         company: job.company_name,
         location: job.candidate_required_location || "Remote",
-        type: /intern/i.test(`${job.title} ${job.description}`) ? "Internship" : "Remote",
+        type: /intern/i.test(`${job.title} ${job.description}`)
+          ? "Internship"
+          : "Remote",
         salary: job.salary || "Not listed",
         description: stripHtml(job.description),
         created: job.publication_date,
@@ -918,7 +1162,8 @@ app.post("/api/auth/signup", (req, res) => {
   if (!name || !email || password.length < 8) {
     return res.status(400).json({
       ok: false,
-      error: "Enter a name, valid email, and password with at least 8 characters.",
+      error:
+        "Enter a name, valid email, and password with at least 8 characters.",
     });
   }
 
@@ -928,7 +1173,9 @@ app.post("/api/auth/signup", (req, res) => {
 });
 
 app.post("/api/auth/login", (req, res) => {
-  const email = String(req.body?.email || "").trim().toLowerCase();
+  const email = String(req.body?.email || "")
+    .trim()
+    .toLowerCase();
   const password = String(req.body?.password || "");
   if (!email || password.length < 8) {
     return res.status(400).json({
@@ -966,8 +1213,8 @@ app.post("/api/auth/oauth", (req, res) => {
 
   const display = provider === "google" ? "Google" : "GitHub";
   const user = upsertUser({
-    name: `${display} User`,
-    email: `${provider}.user@roleready.local`,
+    name: `${display} Account`,
+    email: `${provider}@connected.account`,
     provider,
   });
   const token = createSession(user);
@@ -980,7 +1227,8 @@ app.get("/api/auth/me", (req, res) => {
   const userId = sessions.get(token);
   const user = userId ? findUserById(userId) : null;
 
-  if (!user) return res.status(401).json({ ok: false, error: "Not signed in." });
+  if (!user)
+    return res.status(401).json({ ok: false, error: "Not signed in." });
   res.json({ ok: true, user: publicUser(user) });
 });
 
@@ -1019,7 +1267,10 @@ app.post("/api/analyze-resume", upload.single("resume"), async (req, res) => {
         const geminiError = error?.message || "Gemini analysis failed.";
         aiError = [aiError, geminiError].filter(Boolean).join(" | ");
         source = aiError ? "fallback-ai-error" : "fallback";
-        console.warn("Gemini analysis failed, using fallback analysis:", geminiError);
+        console.warn(
+          "Gemini analysis failed, using fallback analysis:",
+          geminiError,
+        );
       }
     }
 
@@ -1065,9 +1316,13 @@ app.post("/api/interview-turn", async (req, res) => {
           warning = null;
         }
       } catch (error) {
-        const geminiWarning = error?.message || "Gemini interview agent failed.";
+        const geminiWarning =
+          error?.message || "Gemini interview agent failed.";
         warning = [warning, geminiWarning].filter(Boolean).join(" | ");
-        console.warn("Gemini interview agent failed, using fallback:", geminiWarning);
+        console.warn(
+          "Gemini interview agent failed, using fallback:",
+          geminiWarning,
+        );
       }
     }
 
@@ -1089,24 +1344,27 @@ app.post("/api/generate-report", async (req, res) => {
   try {
     let report = null;
     try {
-      report = await reportWithOpenAI(req.body);
-      if (report) source = "openai-report-agent";
+      report = await reportWithGemini(req.body);
+      if (report) source = "gemini-report-agent";
     } catch (error) {
-      warning = error?.message || "OpenAI report agent failed.";
-      console.warn("OpenAI report agent failed, trying Gemini:", warning);
+      warning = error?.message || "Gemini report agent failed.";
+      console.warn("Gemini report agent failed, trying OpenAI:", warning);
     }
 
     if (!report) {
       try {
-        report = await reportWithGemini(req.body);
+        report = await reportWithOpenAI(req.body);
         if (report) {
-          source = "gemini-report-agent";
+          source = "openai-report-agent";
           warning = null;
         }
       } catch (error) {
-        const geminiWarning = error?.message || "Gemini report agent failed.";
-        warning = [warning, geminiWarning].filter(Boolean).join(" | ");
-        console.warn("Gemini report agent failed, using fallback:", geminiWarning);
+        const openaiWarning = error?.message || "OpenAI report agent failed.";
+        warning = [warning, openaiWarning].filter(Boolean).join(" | ");
+        console.warn(
+          "OpenAI report agent failed, using fallback:",
+          openaiWarning,
+        );
       }
     }
 
@@ -1127,7 +1385,9 @@ app.post("/api/generate-report", async (req, res) => {
 });
 
 app.post("/api/recommend-jobs", async (req, res) => {
-  const analysis = normalizeAnalysis(req.body?.resumeAnalysis || fallbackAnalysis);
+  const analysis = normalizeAnalysis(
+    req.body?.resumeAnalysis || fallbackAnalysis,
+  );
   let source = "fallback-job-pool";
   let warning = null;
   let jobs = null;
@@ -1147,7 +1407,10 @@ app.post("/api/recommend-jobs", async (req, res) => {
     } catch (error) {
       const remotiveWarning = error?.message || "Remotive job search failed.";
       warning = [warning, remotiveWarning].filter(Boolean).join(" | ");
-      console.warn("Remotive job search failed, using fallback pool:", remotiveWarning);
+      console.warn(
+        "Remotive job search failed, using fallback pool:",
+        remotiveWarning,
+      );
     }
   }
 
