@@ -67,6 +67,328 @@
       body.light .shapegrid-canvas {
         opacity: 0.28;
       }
+      .infinite-grid-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+        background: radial-gradient(
+            ellipse 75% 36% at 50% 21%,
+            rgba(124, 58, 237, 0.36) 0%,
+            rgba(124, 58, 237, 0.21) 34%,
+            rgba(255, 255, 255, 0.12) 42%,
+            rgba(124, 58, 237, 0.06) 55%,
+            transparent 72%
+          ),
+          linear-gradient(
+            180deg,
+            var(--bg) 0%,
+            rgba(8, 10, 18, 0.86) 48%,
+            var(--bg) 100%
+          );
+      }
+      .infinite-grid-layer {
+        position: absolute;
+        inset: 0;
+        color: var(--hero-grid);
+      }
+      .infinite-grid-layer.base {
+        opacity: 0.1;
+      }
+      .infinite-grid-layer.active {
+        opacity: 0.48;
+      }
+      .infinite-grid-vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+            circle at 78% 12%,
+            var(--hero-glow-a),
+            transparent 24%
+          ),
+          radial-gradient(
+            circle at 16% 78%,
+            var(--hero-glow-c),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at 68% 52%,
+            var(--hero-glow-b),
+            transparent 30%
+          ),
+          linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.24) 100%);
+        filter: blur(42px);
+        opacity: 0.66;
+      }
+      body.light .infinite-grid-bg {
+        background: radial-gradient(
+            ellipse 76% 36% at 50% 18%,
+            rgba(124, 58, 237, 0.2) 0%,
+            rgba(124, 58, 237, 0.1) 40%,
+            rgba(255, 255, 255, 0.38) 50%,
+            transparent 72%
+          ),
+          linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #f6f7fb 100%);
+      }
+      body.light .infinite-grid-layer.base {
+        opacity: 0.13;
+      }
+      body.light .infinite-grid-layer.active {
+        opacity: 0.34;
+      }
+      body.light .infinite-grid-vignette {
+        opacity: 0.36;
+      }
+      .auth-hero-kicker {
+        color: #a78bfa;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .auth-landing {
+        width: min(1160px, 100%);
+        min-height: calc(100vh - 40px);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(3, 5, 12, 0.58);
+        border-radius: 8px;
+        overflow: hidden;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 28px 110px rgba(2, 6, 23, 0.35);
+      }
+      body.light .auth-landing {
+        background: rgba(255, 255, 255, 0.68);
+        box-shadow: 0 28px 90px rgba(79, 70, 229, 0.14);
+      }
+      .auth-topbar {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 42px;
+        position: relative;
+        z-index: 3;
+      }
+      .auth-brand {
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+      .auth-brand-button {
+        border: none;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        padding: 0;
+      }
+      .auth-links {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        color: var(--text-subtle);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .auth-link {
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+        font-weight: 700;
+      }
+      .auth-hero {
+        position: relative;
+        min-height: 560px;
+        padding: 74px 28px 26px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .auth-arc {
+        position: absolute;
+        left: 50%;
+        top: 36px;
+        width: min(980px, 98vw);
+        height: 420px;
+        transform: translateX(-50%);
+        border-radius: 50% 50% 0 0;
+        background: radial-gradient(
+          ellipse at center bottom,
+          rgba(124, 58, 237, 0.82) 0%,
+          rgba(124, 58, 237, 0.58) 28%,
+          rgba(255, 255, 255, 0.78) 38%,
+          rgba(124, 58, 237, 0.34) 48%,
+          transparent 69%
+        );
+        filter: blur(16px);
+        opacity: 0.9;
+        pointer-events: none;
+      }
+      body.light .auth-arc {
+        opacity: 0.46;
+      }
+      .auth-hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 780px;
+        margin: 0 auto;
+      }
+      .auth-hero h1 {
+        margin: 0;
+        font-size: clamp(46px, 7vw, 82px);
+        line-height: 0.96;
+        letter-spacing: 0;
+        text-wrap: balance;
+      }
+      .auth-hero p {
+        margin: 18px auto 0;
+        max-width: 640px;
+        color: var(--text-muted);
+        line-height: 1.7;
+        font-size: 16px;
+      }
+      .auth-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 26px;
+      }
+      .auth-proof {
+        position: relative;
+        z-index: 2;
+        margin-top: 54px;
+        width: min(780px, 100%);
+        display: grid;
+        grid-template-columns: 1.1fr 1fr 1fr 1fr;
+        gap: 0;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 8px;
+        background: rgba(10, 12, 22, 0.72);
+        backdrop-filter: blur(12px);
+      }
+      body.light .auth-proof {
+        background: rgba(255, 255, 255, 0.72);
+      }
+      .auth-proof-item {
+        padding: 16px 18px;
+        border-right: 1px solid rgba(148, 163, 184, 0.22);
+        text-align: left;
+      }
+      .auth-proof-item:last-child {
+        border-right: none;
+      }
+      .auth-proof-label {
+        color: var(--text-subtle);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .auth-proof-value {
+        margin-top: 4px;
+        font-size: 18px;
+        font-weight: 900;
+      }
+      .auth-sections {
+        padding: 26px 44px 44px;
+      }
+      .auth-section-heading {
+        text-align: center;
+        margin: 8px auto 24px;
+        max-width: 620px;
+      }
+      .auth-section-heading h2 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+      .auth-section-heading p {
+        color: var(--text-subtle);
+        line-height: 1.6;
+        margin: 10px 0 0;
+      }
+      .auth-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .auth-feature-card {
+        min-height: 152px;
+        border-radius: 8px !important;
+        background: rgba(15, 17, 32, 0.68) !important;
+      }
+      body.light .auth-feature-card {
+        background: rgba(255, 255, 255, 0.78) !important;
+      }
+      .auth-feature-card.featured {
+        background: linear-gradient(135deg, #7c3aed, #4c1d95) !important;
+        color: #ffffff;
+      }
+      .auth-signin-row {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 16px;
+        align-items: stretch;
+        margin-top: 16px;
+      }
+      .auth-process {
+        border-radius: 8px;
+        border: 1px solid rgba(124, 58, 237, 0.28);
+        padding: 24px;
+        background: linear-gradient(
+          135deg,
+          rgba(124, 58, 237, 0.42),
+          rgba(15, 17, 32, 0.72)
+        );
+      }
+      body.light .auth-process {
+        background: linear-gradient(
+          135deg,
+          rgba(124, 58, 237, 0.16),
+          rgba(255, 255, 255, 0.78)
+        );
+      }
+      .auth-form-card {
+        border-radius: 8px !important;
+        background: rgba(10, 12, 22, 0.82) !important;
+        backdrop-filter: blur(14px);
+      }
+      body.light .auth-form-card {
+        background: rgba(255, 255, 255, 0.86) !important;
+      }
+      @media (max-width: 900px) {
+        .auth-topbar {
+          padding: 0 18px;
+        }
+        .auth-links {
+          display: none;
+        }
+        .auth-hero {
+          min-height: 520px;
+          padding-top: 54px;
+        }
+        .auth-proof,
+        .auth-feature-grid,
+        .auth-signin-row {
+          grid-template-columns: 1fr;
+        }
+        .auth-proof-item {
+          border-right: none;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        }
+        .auth-proof-item:last-child {
+          border-bottom: none;
+        }
+        .auth-sections {
+          padding: 22px 18px 28px;
+        }
+      }
       button,
       input,
       textarea {
@@ -590,11 +912,21 @@
               zIndex: 20,
             }}
           >
-            <div
-              style={{ fontWeight: 800, fontSize: 16, color: "var(--text)" }}
+            <button
+              onClick={() => navigate("dashboard")}
+              title="Go to dashboard"
+              style={{
+                fontWeight: 800,
+                fontSize: 16,
+                color: "var(--text)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+              }}
             >
               RoleReady<span style={{ color: "#7C3AED" }}> AI</span>
-            </div>
+            </button>
             <div
               style={{
                 display: "flex",
@@ -758,79 +1090,239 @@
               zIndex: 1,
             }}
           >
-            <Card style={{ width: "min(440px,100%)" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>
-                RoleReady<span style={{ color: "#7C3AED" }}> AI</span>
-              </div>
-              <p style={{ color: "var(--text-subtle)", lineHeight: 1.6 }}>
-                Sign in to build a personalized interview readiness report.
-              </p>
-              {mode === "signup" && (
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Name"
-                  style={{ ...inp, marginTop: 12 }}
-                />
-              )}
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                style={{ ...inp, marginTop: 12 }}
-              />
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                type="password"
-                style={{ ...inp, marginTop: 12 }}
-              />
-              {error && (
-                <p style={{ color: "#EF4444", fontSize: 13 }}>{error}</p>
-              )}
-              <Btn
-                disabled={loading}
-                onClick={() => auth()}
-                style={{ width: "100%", marginTop: 14 }}
-              >
-                {loading
-                  ? "Signing in..."
-                  : mode === "login"
-                    ? "Log In"
-                    : "Create Account"}
-              </Btn>
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                <Btn
-                  variant="secondary"
-                  onClick={() => auth("google")}
-                  style={{ flex: 1 }}
+            <div className="auth-landing">
+              <div className="auth-topbar">
+                <button
+                  className="auth-brand auth-brand-button"
+                  onClick={() =>
+                    document
+                      .getElementById("auth-hero")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
                 >
-                  Google
-                </Btn>
-                <Btn
-                  variant="secondary"
-                  onClick={() => auth("github")}
-                  style={{ flex: 1 }}
-                >
-                  GitHub
-                </Btn>
+                  RoleReady<span style={{ color: "#7C3AED" }}> AI</span>
+                </button>
+                <div className="auth-links">
+                  {["Features", "Interview AI", "Reports"].map((label) => (
+                    <button
+                      key={label}
+                      className="auth-link"
+                      onClick={() =>
+                        document
+                          .getElementById("auth-how-it-works")
+                          ?.scrollIntoView({ behavior: "smooth" })
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <ThemeToggle />
+                  <Btn
+                    onClick={() => setMode("signup")}
+                    style={{ padding: "9px 16px" }}
+                  >
+                    Get Started
+                  </Btn>
+                </div>
               </div>
-              <button
-                onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                style={{
-                  marginTop: 14,
-                  border: "none",
-                  background: "transparent",
-                  color: "#A78BFA",
-                  cursor: "pointer",
-                }}
-              >
-                {mode === "login"
-                  ? "Need an account?"
-                  : "Already have an account?"}
-              </button>
-            </Card>
+
+              <section className="auth-hero" id="auth-hero">
+                <div className="auth-arc" />
+                <div className="auth-hero-content">
+                  <div className="auth-hero-kicker">
+                    AI resume + interview intelligence
+                  </div>
+                  <h1>Turn your resume into a job-ready interview coach.</h1>
+                  <p>
+                    RoleReady AI parses your resume, adapts questions to your
+                    target role, analyzes audio/video interview responses, and
+                    generates a focused readiness report instead of giving
+                    generic prep advice.
+                  </p>
+                  <div className="auth-actions">
+                    <Btn onClick={() => setMode("signup")}>Start Free Prep</Btn>
+                    <Btn
+                      variant="ghost"
+                      onClick={() =>
+                        document
+                          .getElementById("auth-how-it-works")
+                          ?.scrollIntoView({ behavior: "smooth" })
+                      }
+                    >
+                      See How It Works
+                    </Btn>
+                  </div>
+                </div>
+
+                <div className="auth-proof">
+                  {[
+                    ["Agent Flow", "Resume → Role → Interview"],
+                    ["Unlocked By", "Your uploaded resume"],
+                    ["Signals", "Skills, gaps, voice, video"],
+                    ["Output", "PDF-ready action report"],
+                  ].map(([label, value]) => (
+                    <div className="auth-proof-item" key={label}>
+                      <div className="auth-proof-label">{label}</div>
+                      <div className="auth-proof-value">{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="auth-sections" id="auth-how-it-works">
+                <div className="auth-section-heading">
+                  <h2>
+                    Upload once. Unlock a prep workspace that changes with you.
+                  </h2>
+                  <p>
+                    Every section starts locked, then becomes personalized after
+                    the resume and mock interview give the AI enough context.
+                  </p>
+                </div>
+
+                <div className="auth-feature-grid">
+                  {[
+                    [
+                      "🔒",
+                      "Resume Intelligence",
+                      "Extracts skills, projects, experience, and likely role fit from the candidate's real resume.",
+                    ],
+                    [
+                      "◎",
+                      "Adaptive Questions",
+                      "Generates interview questions based on the selected role, resume gaps, and question count.",
+                    ],
+                    [
+                      "◉",
+                      "Audio/Video Signals",
+                      "Uses recorded or live mock interviews to create readiness and communication feedback.",
+                    ],
+                  ].map(([icon, title, body], index) => (
+                    <Card
+                      key={title}
+                      className={`auth-feature-card ${index === 1 ? "featured" : ""}`}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 12 }}>
+                        {icon}
+                      </div>
+                      <b>{title}</b>
+                      <p
+                        style={{
+                          color:
+                            index === 1
+                              ? "rgba(255,255,255,0.78)"
+                              : "var(--text-subtle)",
+                          lineHeight: 1.6,
+                          fontSize: 13,
+                        }}
+                      >
+                        {body}
+                      </p>
+                    </Card>
+                  ))}
+                </div>
+
+                <div className="auth-signin-row">
+                  <div className="auth-process">
+                    <div className="auth-hero-kicker">What the app does</div>
+                    <h2 style={{ margin: 0, fontSize: 30 }}>
+                      From upload to final report, the experience feels agentic.
+                    </h2>
+                    <p style={{ color: "var(--text-muted)", lineHeight: 1.7 }}>
+                      The app does not show canned demo results first. It waits
+                      for the user's resume, adapts interview questions to the
+                      target role, then uses the mock interview to produce
+                      readiness, gaps, and next steps.
+                    </p>
+                  </div>
+
+                  <Card className="auth-form-card">
+                    <div
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 800,
+                        marginBottom: 4,
+                      }}
+                    >
+                      RoleReady<span style={{ color: "#7C3AED" }}> AI</span>
+                    </div>
+                    <p style={{ color: "var(--text-subtle)", lineHeight: 1.6 }}>
+                      Sign in to build a personalized interview readiness
+                      report.
+                    </p>
+                    {mode === "signup" && (
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Name"
+                        style={{ ...inp, marginTop: 12 }}
+                      />
+                    )}
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Email"
+                      style={{ ...inp, marginTop: 12 }}
+                    />
+                    <input
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      type="password"
+                      style={{ ...inp, marginTop: 12 }}
+                    />
+                    {error && (
+                      <p style={{ color: "#EF4444", fontSize: 13 }}>{error}</p>
+                    )}
+                    <Btn
+                      disabled={loading}
+                      onClick={() => auth()}
+                      style={{ width: "100%", marginTop: 14 }}
+                    >
+                      {loading
+                        ? "Signing in..."
+                        : mode === "login"
+                          ? "Log In"
+                          : "Create Account"}
+                    </Btn>
+                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                      <Btn
+                        variant="secondary"
+                        onClick={() => auth("google")}
+                        style={{ flex: 1 }}
+                      >
+                        Google
+                      </Btn>
+                      <Btn
+                        variant="secondary"
+                        onClick={() => auth("github")}
+                        style={{ flex: 1 }}
+                      >
+                        GitHub
+                      </Btn>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setMode(mode === "login" ? "signup" : "login")
+                      }
+                      style={{
+                        marginTop: 14,
+                        border: "none",
+                        background: "transparent",
+                        color: "#A78BFA",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {mode === "login"
+                        ? "Need an account?"
+                        : "Already have an account?"}
+                    </button>
+                  </Card>
+                </div>
+              </section>
+            </div>
           </div>
         );
       }
@@ -3238,6 +3730,82 @@
         );
       }
 
+      function GridPattern({ id, offset }) {
+        return (
+          <svg width="100%" height="100%" style={{ display: "block" }}>
+            <defs>
+              <pattern
+                id={id}
+                width="40"
+                height="40"
+                patternUnits="userSpaceOnUse"
+                x={offset.x}
+                y={offset.y}
+              >
+                <path
+                  d="M 40 0 L 0 0 0 40"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill={`url(#${id})`} />
+          </svg>
+        );
+      }
+
+      function InfiniteGridBackground() {
+        const [offset, setOffset] = useState({ x: 0, y: 0 });
+        const [mouse, setMouse] = useState(() => ({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 3,
+        }));
+
+        useEffect(() => {
+          let frame;
+          const speed = 0.5;
+          const animate = () => {
+            setOffset((current) => ({
+              x: (current.x + speed) % 40,
+              y: (current.y + speed) % 40,
+            }));
+            frame = requestAnimationFrame(animate);
+          };
+          frame = requestAnimationFrame(animate);
+          return () => cancelAnimationFrame(frame);
+        }, []);
+
+        useEffect(() => {
+          const handleMove = (event) =>
+            setMouse({ x: event.clientX, y: event.clientY });
+          const handleResize = () =>
+            setMouse({ x: window.innerWidth / 2, y: window.innerHeight / 3 });
+          window.addEventListener("mousemove", handleMove);
+          window.addEventListener("resize", handleResize);
+          return () => {
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("resize", handleResize);
+          };
+        }, []);
+
+        const maskImage = `radial-gradient(310px circle at ${mouse.x}px ${mouse.y}px, black, transparent)`;
+        return (
+          <div className="infinite-grid-bg" aria-hidden="true">
+            <div className="infinite-grid-layer base">
+              <GridPattern id="role-ready-grid-base" offset={offset} />
+            </div>
+            <div
+              className="infinite-grid-layer active"
+              style={{ maskImage, WebkitMaskImage: maskImage }}
+            >
+              <GridPattern id="role-ready-grid-active" offset={offset} />
+            </div>
+            <div className="infinite-grid-vignette" />
+          </div>
+        );
+      }
+
       function App() {
         const [screen, setScreen] = useState("auth");
         const [, setVersion] = useState(0);
@@ -3289,16 +3857,7 @@
               });
         return (
           <ClickSpark>
-            <ShapeGrid
-              speed={0.5}
-              squareSize={41}
-              direction="diagonal"
-              borderColor="#2F293A"
-              hoverFillColor="#222"
-              hoverColor="#7C3AED"
-              shape="square"
-              hoverTrailAmount={15}
-            />
+            <InfiniteGridBackground />
             <div style={{ position: "relative", zIndex: 1 }}>{current}</div>
           </ClickSpark>
         );
