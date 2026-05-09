@@ -3652,63 +3652,85 @@
       function ClickSpark({ children, sparkColor = "#fff" }) {
         const canvasRef = useRef(null);
         const sparksRef = useRef([]);
+        const frameRef = useRef(null);
+        const sparkDuration = 150;
+
         useEffect(() => {
           const canvas = canvasRef.current;
-          const parent = canvas?.parentElement;
-          if (!canvas || !parent) return;
+          if (!canvas) return;
+
           const resize = () => {
-            const rect = parent.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.max(1, Math.floor(window.innerWidth * ratio));
+            canvas.height = Math.max(1, Math.floor(window.innerHeight * ratio));
+            canvas.style.width = `${window.innerWidth}px`;
+            canvas.style.height = `${window.innerHeight}px`;
+            canvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
           };
+
           resize();
-          const observer = new ResizeObserver(resize);
-          observer.observe(parent);
-          let frame;
-          const draw = (time) => {
-            const ctx = canvas.getContext("2d");
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            sparksRef.current = sparksRef.current.filter((spark) => {
-              const elapsed = time - spark.start;
-              if (elapsed > 420) return false;
-              const progress = elapsed / 420;
-              const distance = progress * 18;
-              const length = 10 * (1 - progress);
-              ctx.strokeStyle = sparkColor;
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(
-                spark.x + distance * Math.cos(spark.angle),
-                spark.y + distance * Math.sin(spark.angle),
-              );
-              ctx.lineTo(
-                spark.x + (distance + length) * Math.cos(spark.angle),
-                spark.y + (distance + length) * Math.sin(spark.angle),
-              );
-              ctx.stroke();
-              return true;
-            });
-            frame = requestAnimationFrame(draw);
-          };
-          frame = requestAnimationFrame(draw);
+          window.addEventListener("resize", resize);
+
           return () => {
-            cancelAnimationFrame(frame);
-            observer.disconnect();
+            if (frameRef.current) cancelAnimationFrame(frameRef.current);
+            window.removeEventListener("resize", resize);
           };
-        }, [sparkColor]);
+        }, []);
+
+        const draw = (time) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+          sparksRef.current = sparksRef.current.filter((spark) => {
+            const elapsed = time - spark.start;
+            if (elapsed > sparkDuration) return false;
+
+            const progress = elapsed / sparkDuration;
+            const ease = progress * (2 - progress);
+            const distance = ease * 14;
+            const length = 8 * (1 - ease);
+
+            ctx.globalAlpha = 1 - progress;
+            ctx.strokeStyle = sparkColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(
+              spark.x + distance * Math.cos(spark.angle),
+              spark.y + distance * Math.sin(spark.angle),
+            );
+            ctx.lineTo(
+              spark.x + (distance + length) * Math.cos(spark.angle),
+              spark.y + (distance + length) * Math.sin(spark.angle),
+            );
+            ctx.stroke();
+            return true;
+          });
+
+          ctx.globalAlpha = 1;
+
+          if (sparksRef.current.length) {
+            frameRef.current = requestAnimationFrame(draw);
+          } else {
+            frameRef.current = null;
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+          }
+        };
+
         const click = (e) => {
-          const rect = canvasRef.current.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
           sparksRef.current.push(
-            ...Array.from({ length: 8 }, (_, index) => ({
-              x,
-              y,
-              angle: (Math.PI * 2 * index) / 8,
+            ...Array.from({ length: 6 }, (_, index) => ({
+              x: e.clientX,
+              y: e.clientY,
+              angle: (Math.PI * 2 * index) / 6,
               start: performance.now(),
             })),
           );
+          if (!frameRef.current) frameRef.current = requestAnimationFrame(draw);
         };
+
         return (
           <div
             onClick={click}
