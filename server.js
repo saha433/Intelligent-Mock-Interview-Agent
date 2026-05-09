@@ -1042,6 +1042,28 @@ async function fetchAdzunaJobs(analysis) {
   if (!appId || !appKey) return null;
 
   const country = (process.env.ADZUNA_COUNTRY || "in").toLowerCase();
+  const supportedCountries = new Set([
+    "at",
+    "au",
+    "be",
+    "br",
+    "ca",
+    "ch",
+    "de",
+    "es",
+    "fr",
+    "gb",
+    "it",
+    "mx",
+    "nl",
+    "nz",
+    "pl",
+    "sg",
+    "us",
+    "za",
+  ]);
+  if (!supportedCountries.has(country)) return null;
+
   const location = process.env.ADZUNA_LOCATION || "India";
   const role = analysis.bestFitRoles[0]?.role || "Software Developer";
   const skills = analysis.extractedSkills
@@ -1066,7 +1088,7 @@ async function fetchAdzunaJobs(analysis) {
     data = JSON.parse(text);
   } catch {
     throw new Error(
-      `Adzuna returned ${response.status} ${response.statusText}. Check ADZUNA_APP_ID / ADZUNA_APP_KEY and country code.`,
+      `Adzuna returned ${response.status} ${response.statusText}.`,
     );
   }
 
@@ -1392,6 +1414,32 @@ app.post("/api/recommend-jobs", async (req, res) => {
   let warning = null;
   let jobs = null;
 
+  const country = (process.env.ADZUNA_COUNTRY || "in").toLowerCase();
+  const adzunaSupported = new Set([
+    "at",
+    "au",
+    "be",
+    "br",
+    "ca",
+    "ch",
+    "de",
+    "es",
+    "fr",
+    "gb",
+    "it",
+    "mx",
+    "nl",
+    "nz",
+    "pl",
+    "sg",
+    "us",
+    "za",
+  ]).has(country);
+  if (!adzunaSupported && process.env.ADZUNA_APP_ID) {
+    warning =
+      "Adzuna does not support this country code, so the job agent used remote/live fallback sources.";
+  }
+
   try {
     jobs = await fetchAdzunaJobs(analysis);
     if (jobs?.length) source = "adzuna";
@@ -1403,7 +1451,10 @@ app.post("/api/recommend-jobs", async (req, res) => {
   if (!jobs?.length) {
     try {
       jobs = await fetchRemotiveJobs(analysis);
-      if (jobs?.length) source = "remotive";
+      if (jobs?.length) {
+        source = "remotive";
+        warning = null;
+      }
     } catch (error) {
       const remotiveWarning = error?.message || "Remotive job search failed.";
       warning = [warning, remotiveWarning].filter(Boolean).join(" | ");

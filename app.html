@@ -168,8 +168,15 @@
         align-items: center;
         justify-content: space-between;
         padding: 0 42px;
-        position: relative;
+        position: sticky;
+        top: 0;
         z-index: 3;
+        background: rgba(3, 5, 12, 0.68);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      body.light .auth-topbar {
+        background: rgba(255, 255, 255, 0.72);
       }
       .auth-brand {
         font-size: 22px;
@@ -361,6 +368,42 @@
       }
       body.light .auth-form-card {
         background: rgba(255, 255, 255, 0.86) !important;
+      }
+      .role-combobox {
+        position: relative;
+        margin-top: 6px;
+      }
+      .role-combobox input {
+        width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 44px 12px 14px;
+        color: var(--text);
+        outline: none;
+      }
+      .role-combobox button {
+        position: absolute;
+        right: 7px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid rgba(124, 58, 237, 0.26);
+        background: rgba(124, 58, 237, 0.12);
+        color: #a78bfa;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .role-combobox button:hover {
+        transform: translateY(-50%);
+      }
+      .role-field-hint {
+        margin-top: 7px;
+        color: var(--text-subtle);
+        font-size: 11px;
       }
       @media (max-width: 900px) {
         .auth-topbar {
@@ -913,8 +956,8 @@
             }}
           >
             <button
-              onClick={() => navigate("dashboard")}
-              title="Go to dashboard"
+              onClick={() => navigate("home")}
+              title="Go to home"
               style={{
                 fontWeight: 800,
                 fontSize: 16,
@@ -1093,10 +1136,11 @@
             <div className="auth-landing">
               <div className="auth-topbar">
                 <button
+                  type="button"
                   className="auth-brand auth-brand-button"
                   onClick={() =>
                     document
-                      .getElementById("auth-hero")
+                      .querySelector(".auth-landing")
                       ?.scrollIntoView({ behavior: "smooth" })
                   }
                 >
@@ -1324,6 +1368,124 @@
               </section>
             </div>
           </div>
+        );
+      }
+
+      function HomeScreen({ navigate, onLogout }) {
+        return (
+          <Page navigate={navigate} active="home" onLogout={onLogout}>
+            <div className="auth-landing">
+              <section className="auth-hero" id="home-hero">
+                <div className="auth-arc" />
+                <div className="auth-hero-content">
+                  <div className="auth-hero-kicker">
+                    Welcome back, {appUser.name}
+                  </div>
+                  <h1>Turn your resume into a job-ready interview coach.</h1>
+                  <p>
+                    Continue from your personalized workspace. RoleReady AI can
+                    parse your resume, adapt interview questions, analyze
+                    recordings, and generate the report without asking you to
+                    sign in again.
+                  </p>
+                  <div className="auth-actions">
+                    <Btn onClick={() => navigate("dashboard")}>
+                      Continue to Dashboard
+                    </Btn>
+                    <Btn
+                      variant="ghost"
+                      onClick={() =>
+                        navigate(
+                          resumeState.uploaded ? "interview" : "dashboard",
+                        )
+                      }
+                    >
+                      {resumeState.uploaded
+                        ? "Start Interview"
+                        : "Upload Resume First"}
+                    </Btn>
+                  </div>
+                </div>
+
+                <div className="auth-proof">
+                  {[
+                    [
+                      "Resume",
+                      resumeState.uploaded ? resumeState.fileName : "Locked",
+                    ],
+                    [
+                      "Analysis",
+                      resumeState.uploaded ? "Personalized" : "Upload needed",
+                    ],
+                    [
+                      "Interview",
+                      lastInterviewSession ? "Completed" : "Ready when you are",
+                    ],
+                    [
+                      "Report",
+                      generatedReport ? "Generated" : "After mock interview",
+                    ],
+                  ].map(([label, value]) => (
+                    <div className="auth-proof-item" key={label}>
+                      <div className="auth-proof-label">{label}</div>
+                      <div className="auth-proof-value">{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="auth-sections">
+                <div className="auth-section-heading">
+                  <h2>Your AI prep path stays unlocked after login.</h2>
+                  <p>
+                    Use this home page as the polished intro during demos, then
+                    jump straight back into the actual product workflow.
+                  </p>
+                </div>
+                <div className="auth-feature-grid">
+                  {[
+                    [
+                      "🔒",
+                      "Resume-Gated Workspace",
+                      "The app reveals analysis, jobs, interviews, and reports only after the user uploads a resume.",
+                    ],
+                    [
+                      "◎",
+                      "Adaptive Interview Agent",
+                      "Questions change with the selected role, resume evidence, and answer history.",
+                    ],
+                    [
+                      "◉",
+                      "Final Readiness Report",
+                      "The report combines resume gaps, interview performance, and audio/video signals.",
+                    ],
+                  ].map(([icon, title, body], index) => (
+                    <Card
+                      key={title}
+                      className={`auth-feature-card ${index === 1 ? "featured" : ""}`}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 12 }}>
+                        {icon}
+                      </div>
+                      <b>{title}</b>
+                      <p
+                        style={{
+                          color:
+                            index === 1
+                              ? "rgba(255,255,255,0.78)"
+                              : "var(--text-subtle)",
+                          lineHeight: 1.6,
+                          fontSize: 13,
+                        }}
+                      >
+                        {body}
+                      </p>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </Page>
         );
       }
 
@@ -2492,34 +2654,44 @@
                     >
                       Target Role
                     </label>
-                    <input
-                      value={roleQuery}
-                      onFocus={() => setRoleOpen(true)}
-                      onBlur={() => setTimeout(() => setRoleOpen(false), 120)}
-                      onChange={(e) => {
-                        setRoleQuery(e.target.value);
-                        setSelectedRole(e.target.value);
-                        setRoleOpen(true);
-                      }}
-                      placeholder="Start typing a role..."
-                      style={{
-                        width: "100%",
-                        marginTop: 6,
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        padding: "12px 14px",
-                        color: "var(--text)",
-                        outline: "none",
-                      }}
-                    />
+                    <div className="role-combobox">
+                      <input
+                        id="target-role-combobox"
+                        value={roleQuery}
+                        onFocus={() => setRoleOpen(true)}
+                        onBlur={() => setTimeout(() => setRoleOpen(false), 140)}
+                        onChange={(e) => {
+                          setRoleQuery(e.target.value);
+                          setSelectedRole(e.target.value);
+                          setRoleOpen(true);
+                        }}
+                        placeholder="Search or choose a role..."
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        title="Show role options"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setRoleOpen((open) => !open);
+                          document
+                            .getElementById("target-role-combobox")
+                            ?.focus();
+                        }}
+                      >
+                        ▾
+                      </button>
+                    </div>
+                    <div className="role-field-hint">
+                      Type to search, or open the dropdown to choose a role.
+                    </div>
                     {roleOpen && roleSuggestions.length > 0 && (
                       <div
                         style={{
                           position: "absolute",
                           left: 0,
                           right: 0,
-                          top: 68,
+                          top: 92,
                           zIndex: 20,
                           background: "var(--surface)",
                           border: "1px solid var(--border)",
@@ -3865,6 +4037,7 @@
         };
         const screens = {
           auth: <AuthScreen onAuth={handleAuth} />,
+          home: <HomeScreen navigate={navigate} />,
           dashboard: <DashboardScreen navigate={navigate} refresh={refresh} />,
           analysis: <AnalysisScreen navigate={navigate} />,
           jobs: <JobsScreen navigate={navigate} />,
