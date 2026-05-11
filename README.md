@@ -90,8 +90,6 @@ Open:
 http://localhost:3001/
 ```
 
-Do not open `app.html` directly with `file://`, because backend APIs such as resume parsing, job recommendations, and report generation require the Express server.
-
 ## End-to-End User Flow
 
 1. Open the landing page.
@@ -195,20 +193,6 @@ Communication and confidence scoring considers:
 - confidence proxy
 
 Audio/video signals are lightweight prototype heuristics and are not meant to be used as production hiring assessments.
-
-## Demo Checklist
-
-For a short hackathon demo, show:
-
-- resume upload and parsing
-- inferred job roles and skills
-- job recommendations with match scores
-- interview role dropdown and question count
-- adaptive question flow
-- audio/video or prerecorded interview option
-- final coaching report
-- export/download report
-- light/dark mode and polished hero page
 
 ## Limitations
 
